@@ -1,0 +1,17 @@
+{
+    "import" : [
+        "moonbitlang/x/encoding"
+    ],
+    "native-stub": [
+        "mbt_sqlite3.c",
+        "sqlite3.c"
+    ],
+    "link" : {
+        "native" : {
+            "cc-flags": "-c"
+        }
+    },
+    "supported-targets": [
+        "native"
+    ]
+}
