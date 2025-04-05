@@ -1,0 +1,13 @@
+{
+  "name": "myfreess/sqlite3_test",
+  "version": "0.1.0",
+  "deps": {
+    "myfreess/sqlite3": {
+      "path": ".."
+    }
+  },
+  "repository": "",
+  "license": "Apache-2.0",
+  "keywords": [],
+  "description": ""
+}

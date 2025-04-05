@@ -1,0 +1,2 @@
+-Isqlite3_3.49.1
+-I/home/foo/.moon/include
