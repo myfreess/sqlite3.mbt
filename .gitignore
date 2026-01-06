@@ -3,3 +3,5 @@ target/
 .DS_Store
 *.db
 .moonagent
+_build/
+target
