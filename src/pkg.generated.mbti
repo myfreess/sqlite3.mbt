@@ -75,7 +75,9 @@ pub const SQLITE_TOOBIG : Int = 18
 pub const SQLITE_WARNING : Int = 28
 
 // Errors
-pub suberror SqliteError (Int, SourceLoc)
+pub suberror SqliteError {
+  SqliteError((Int, SourceLoc))
+}
 pub impl Show for SqliteError
 
 // Types and methods

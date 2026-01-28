@@ -44,7 +44,7 @@ pub fn Connection::prepare(
   stmt : String,
   loc~ : SourceLoc,
 ) -> Statement raise SqliteError {
-  let stmt = @encoding/utf8.encode(stmt)
+  let stmt = @utf8.encode(stmt)
   let len = stmt.length()
   let out = StatementRef::malloc()
   let tail = UTF8StrRef::malloc()
