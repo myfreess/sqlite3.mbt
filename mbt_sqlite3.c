@@ -17,7 +17,9 @@ const void** moonbit_sqlite3_mkref() {
 }
 
 const void* moonbit_sqlite3_readref(const void** object_ref) {
-  return *object_ref;
+  const void* object = *object_ref;
+  free(object_ref);
+  return object;
 }
 
 int moonbit_sqlite3_bind_bytes(sqlite3_stmt *stmt, int param_index, const void* bytes, int len) {
