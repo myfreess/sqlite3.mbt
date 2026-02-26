@@ -52,6 +52,7 @@ fn select_company(conn : @sqlite3.Connection) -> Unit raise {
     let column4 : Double = stmt.column(index=4)
     assert_eq(column4.to_int(), 20000)
   }
+  stmt.finalize()
 }
 
 ///|
@@ -60,4 +61,5 @@ test {
   create_company(conn)
   insert_company(conn)
   select_company(conn)
+  conn.close()
 }
