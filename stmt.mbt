@@ -1,41 +1,5 @@
 ///|
-#external
-pub type Statement
-
-///|
-#external
-priv type StatementRef
-
-///|
-extern "c" fn StatementRef::malloc() -> StatementRef = "moonbit_sqlite3_mkref"
-
-///|
-extern "c" fn StatementRef::read(self : StatementRef) -> Statement = "moonbit_sqlite3_readref"
-
-///|
-#external
-priv type UTF8StrRef
-
-///|
-extern "c" fn UTF8StrRef::malloc() -> UTF8StrRef = "moonbit_sqlite3_mkref"
-
-// TODO: fix tail
-
-///|
-#borrow(stmt)
-extern "c" fn sqlite3_prepare(
-  conn : Connection,
-  stmt : Bytes,
-  len : Int,
-  out : StatementRef,
-  tail : UTF8StrRef,
-) -> Int = "sqlite3_prepare_v2"
-
-///|
-extern "c" fn sqlite3_step(stmt : Statement) -> Int = "sqlite3_step"
-
-///|
-extern "c" fn sqlite3_finalize(stmt : Statement) -> Int = "sqlite3_finalize"
+struct Statement(@ffi.Sqlite3Stmt)
 
 ///|
 #callsite(autofill(loc))
@@ -44,14 +8,11 @@ pub fn Connection::prepare(
   stmt : String,
   loc~ : SourceLoc,
 ) -> Statement raise SqliteError {
-  let stmt = @utf8.encode(stmt)
-  let len = stmt.length()
-  let out = StatementRef::malloc()
-  let tail = UTF8StrRef::malloc()
-  let rescode = sqlite3_prepare(self, stmt, len, out, tail)
+  let sql = @utf8.encode(stmt)
+  let out = @ffi.sqlite3_stmt_allocate()
+  let rescode = @ffi.sqlite3_prepare_v2(self.0, sql, out)
   if rescode == SQLITE_OK {
-    let stmt_object = out.read()
-    return stmt_object
+    return Statement(out)
   } else {
     raise SqliteError((rescode, loc))
   }
@@ -76,7 +37,8 @@ pub fn Statement::bind_string_as_blob(
   val : String,
   loc~ : SourceLoc,
 ) -> Unit raise SqliteError {
-  let rescode = sqlite3_bind_string(self, index, val, val.length() * 2)
+  let blob = @utf8.encode(val)
+  let rescode = @ffi.sqlite3_bind_blob(self.0, index, blob)
   if rescode != SQLITE_OK {
     raise SqliteError((rescode, loc))
   }
@@ -92,7 +54,8 @@ pub fn Statement::column_blob_as_string(
   self : Statement,
   index~ : Int,
 ) -> String {
-  sqlite3_column_string(self, index)
+  let blob = @ffi.sqlite3_column_blob(self.0, index)
+  @utf8.decode_lossy(blob)
 }
 
 ///|
@@ -101,7 +64,7 @@ pub fn Statement::step(
   self : Statement,
   loc~ : SourceLoc,
 ) -> Bool raise SqliteError {
-  let rescode = sqlite3_step(self)
+  let rescode = @ffi.sqlite3_step(self.0)
   match rescode {
     SQLITE_DONE => false
     SQLITE_ROW => true
@@ -126,7 +89,7 @@ pub fn Statement::finalize(
   self : Statement,
   loc~ : SourceLoc,
 ) -> Unit raise SqliteError {
-  let rescode = sqlite3_finalize(self)
+  let rescode = @ffi.sqlite3_finalize(self.0)
   if rescode != SQLITE_OK {
     raise SqliteError((rescode, loc))
   }

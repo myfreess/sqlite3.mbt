@@ -1,0 +1,4 @@
+options(
+  "native-stub": [ "stub.c", "sqlite3.c" ],
+  targets: { "ffi.mbt": [ "native" ] },
+)

@@ -81,8 +81,7 @@ pub suberror SqliteError {
 pub impl Show for SqliteError
 
 // Types and methods
-#external
-pub type Connection
+type Connection
 #callsite(autofill(loc))
 pub fn Connection::close(Self, loc~ : SourceLoc) -> Unit raise SqliteError
 pub fn Connection::get_errmsg(Self) -> String
@@ -91,8 +90,7 @@ pub fn Connection::open(String, loc~ : SourceLoc) -> Self raise SqliteError
 #callsite(autofill(loc))
 pub fn Connection::prepare(Self, String, loc~ : SourceLoc) -> Statement raise SqliteError
 
-#external
-pub type Statement
+type Statement
 #callsite(autofill(loc))
 pub fn[T : Bind] Statement::bind(Self, index~ : Int, T, loc~ : SourceLoc) -> Unit raise SqliteError
 #callsite(autofill(loc))

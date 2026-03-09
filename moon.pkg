@@ -1,9 +1,8 @@
 import {
-  "moonbitlang/core/buffer",
   "moonbitlang/core/encoding/utf8" @utf8,
+  "moonbit-community/sqlite3/internal/ffi" @ffi,
 }
 
 options(
-  "native-stub": [ "mbt_sqlite3.c", "sqlite3.c" ],
   "supported-targets": [ "native" ],
 )

@@ -1,0 +1,63 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "moonbit-community/sqlite3/internal/ffi"
+
+// Values
+pub fn sqlite3_allocate() -> Sqlite3
+
+pub fn sqlite3_bind_blob(Sqlite3Stmt, Int, Bytes) -> Int
+
+pub fn sqlite3_bind_double(Sqlite3Stmt, Int, Double) -> Int
+
+pub fn sqlite3_bind_int(Sqlite3Stmt, Int, Int) -> Int
+
+pub fn sqlite3_bind_int64(Sqlite3Stmt, Int, Int64) -> Int
+
+pub fn sqlite3_bind_null(Sqlite3Stmt, Int) -> Int
+
+pub fn sqlite3_bind_text(Sqlite3Stmt, Int, Bytes) -> Int
+
+pub fn sqlite3_close(Sqlite3) -> Int
+
+pub fn sqlite3_column_blob(Sqlite3Stmt, Int) -> Bytes
+
+pub fn sqlite3_column_count(Sqlite3Stmt) -> Int
+
+pub fn sqlite3_column_double(Sqlite3Stmt, Int) -> Double
+
+pub fn sqlite3_column_int(Sqlite3Stmt, Int) -> Int
+
+pub fn sqlite3_column_int64(Sqlite3Stmt, Int) -> Int64
+
+pub fn sqlite3_column_text(Sqlite3Stmt, Int) -> Bytes
+
+pub fn sqlite3_column_type(Sqlite3Stmt, Int) -> Int
+
+pub fn sqlite3_errcode(Sqlite3) -> Int
+
+pub fn sqlite3_errmsg(Sqlite3) -> Bytes
+
+pub fn sqlite3_exec(Sqlite3, Bytes) -> Int
+
+pub fn sqlite3_finalize(Sqlite3Stmt) -> Int
+
+pub fn sqlite3_open(Bytes, Sqlite3) -> Int
+
+pub fn sqlite3_prepare_v2(Sqlite3, Bytes, Sqlite3Stmt) -> Int
+
+pub fn sqlite3_reset(Sqlite3Stmt) -> Int
+
+pub fn sqlite3_step(Sqlite3Stmt) -> Int
+
+pub fn sqlite3_stmt_allocate() -> Sqlite3Stmt
+
+// Errors
+
+// Types and methods
+pub type Sqlite3
+
+pub type Sqlite3Stmt
+
+// Type aliases
+
+// Traits
+
