@@ -34,3 +34,11 @@ pub impl Bind for Bytes with bind(stmt, param_index, value, loc~ : SourceLoc) {
     raise SqliteError((rescode, loc))
   }
 }
+
+///|
+pub impl Bind for String with bind(stmt, param_index, value, loc~ : SourceLoc) {
+  let rescode = @ffi.sqlite3_bind_text(stmt.0, param_index, @utf8.encode(value))
+  if rescode != SQLITE_OK {
+    raise SqliteError((rescode, loc))
+  }
+}

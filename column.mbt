@@ -22,3 +22,8 @@ pub impl Column for Double with column(stmt, index) {
 pub impl Column for Bytes with column(stmt, index) {
   @ffi.sqlite3_column_blob(stmt.0, index)
 }
+
+///|
+pub impl Column for String with column(stmt, index) {
+  @utf8.decode_lossy(@ffi.sqlite3_column_text(stmt.0, index))
+}

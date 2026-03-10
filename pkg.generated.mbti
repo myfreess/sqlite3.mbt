@@ -111,11 +111,13 @@ trait Bind
 pub impl Bind for Int
 pub impl Bind for Int64
 pub impl Bind for Double
+pub impl Bind for String
 pub impl Bind for Bytes
 
 trait Column
 pub impl Column for Int
 pub impl Column for Int64
 pub impl Column for Double
+pub impl Column for String
 pub impl Column for Bytes
 
