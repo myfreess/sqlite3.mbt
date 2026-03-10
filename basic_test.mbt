@@ -27,9 +27,9 @@ fn insert_company(
     ),
   )
   stmt.bind(index=1, 1)
-  stmt.bind_string_as_blob(index=2, "Paul")
+  stmt.bind(index=2, "Paul")
   stmt.bind(index=3, 32)
-  stmt.bind_string_as_blob(index=4, "California")
+  stmt.bind(index=4, "California")
   stmt.bind(index=5, 20000.00)
   stmt.step_once()
   stmt.finalize()
@@ -45,9 +45,9 @@ fn select_company(conn : @sqlite3.Connection) -> Unit raise {
   if stmt.step() {
     let column0 : Int = stmt.column(index=0)
     assert_eq(column0, 1)
-    let column1 : String = stmt.column_blob_as_string(index=1)
+    let column1 : String = stmt.column(index=1)
     assert_eq(column1, "Paul")
-    let column3 : String = stmt.column_blob_as_string(index=3)
+    let column3 : String = stmt.column(index=3)
     assert_eq(column3, "California")
     let column4 : Double = stmt.column(index=4)
     assert_eq(column4.to_int(), 20000)

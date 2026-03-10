@@ -30,32 +30,8 @@ pub fn[T : Bind] Statement::bind(
 }
 
 ///|
-#callsite(autofill(loc))
-pub fn Statement::bind_string_as_blob(
-  self : Statement,
-  index~ : Int,
-  val : String,
-  loc~ : SourceLoc,
-) -> Unit raise SqliteError {
-  let blob = @utf8.encode(val)
-  let rescode = @ffi.sqlite3_bind_blob(self.0, index, blob)
-  if rescode != SQLITE_OK {
-    raise SqliteError((rescode, loc))
-  }
-}
-
-///|
 pub fn[T : Column] Statement::column(self : Statement, index~ : Int) -> T {
   T::column(self, index)
-}
-
-///|
-pub fn Statement::column_blob_as_string(
-  self : Statement,
-  index~ : Int,
-) -> String {
-  let blob = @ffi.sqlite3_column_blob(self.0, index)
-  @utf8.decode_lossy(blob)
 }
 
 ///|
