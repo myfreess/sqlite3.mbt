@@ -1,4 +1,4 @@
 # SQLite3.mbt
 
-A SQLite3 binding library for MoonBit, providing a simple interface to SQLite3 database operations.
+A lightweight, low-level SQLite3 binding for MoonBit, providing a thin interface over the SQLite3 C API.
 
