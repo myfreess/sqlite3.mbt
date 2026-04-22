@@ -1,7 +1,7 @@
 ///|
 pub suberror SqliteError {
   SqliteError((Int, SourceLoc))
-} derive(Show)
+} derive(Debug)
 
 ///|
 pub fn Connection::get_errmsg(conn : Connection) -> String {
