@@ -1,6 +1,10 @@
 // Generated using `moon info`, DON'T EDIT IT
 package "moonbit-community/sqlite3"
 
+import {
+  "moonbitlang/core/debug",
+}
+
 // Values
 pub const SQLITE_ABORT : Int = 4
 
@@ -77,7 +81,7 @@ pub const SQLITE_WARNING : Int = 28
 // Errors
 pub suberror SqliteError {
   SqliteError((Int, SourceLoc))
-} derive(Show)
+} derive(@debug.Debug)
 
 // Types and methods
 type Connection
