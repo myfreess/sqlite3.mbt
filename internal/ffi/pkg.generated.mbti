@@ -60,4 +60,3 @@ pub type Sqlite3Stmt
 // Type aliases
 
 // Traits
-

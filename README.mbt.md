@@ -154,13 +154,7 @@ All public operations that can fail raise `SqliteError`. If you want explicit re
 test "error handling" {
   let conn = @sqlite3.Connection::open(":memory:")
 
-  let result : Result[@sqlite3.Statement, @sqlite3.SqliteError] = try? conn.prepare(
-    "SELECT FROM",
-  )
-
-  guard result is Err(_) else {
-    fail("expected invalid SQL to return an error")
-  }
+  @test.assert_raise(() => conn.prepare("SELECT FROM"))
 
   assert_true(conn.get_errmsg().length() > 0)
   conn.close()
