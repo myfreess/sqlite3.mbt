@@ -1,0 +1,15 @@
+name = "moonbit-community/sqlite3"
+
+version = "0.1.6"
+
+readme = "README.md"
+
+repository = "https://github.com/moonbit-community/sqlite3.mbt"
+
+license = "Apache-2.0"
+
+keywords = [ ]
+
+description = "A lightweight, low-level SQLite3 binding for MoonBit, providing a thin interface over the SQLite3 C API."
+
+preferred_target = "native"

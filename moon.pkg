@@ -1,7 +1,11 @@
 import {
-  "moonbitlang/core/encoding/utf8" @utf8,
-  "moonbit-community/sqlite3/internal/ffi" @ffi,
+  "moonbitlang/core/encoding/utf8",
+  "moonbit-community/sqlite3/internal/ffi",
 }
+
+import {
+  "moonbitlang/core/test",
+} for "test"
 
 options(
   backend: [ "native" ],
