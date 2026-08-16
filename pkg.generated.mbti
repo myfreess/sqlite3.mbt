@@ -82,6 +82,8 @@ pub const SQLITE_WARNING : Int = 28
 pub suberror SqliteError {
   SqliteError((Int, SourceLoc))
 } derive(@debug.Debug)
+#deprecated
+pub fn SqliteError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 type Connection
