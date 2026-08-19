@@ -194,7 +194,7 @@ The current public implementations support the following MoonBit types:
 
 ## Constraints and Notes
 
-- This is a manual resource management API. Every `Statement` should be explicitly `finalize()`d, and every `Connection` should be explicitly `close()`d.
+- This is a manual resource management API. Every `Statement` must be explicitly `finalize()`d, and every `Connection` must be explicitly `close()`d. Dropping these values does not release SQLite resources on any backend.
 - The current public API does not expose `reset`, so a statement that has already been executed should generally be treated as a one-shot object. If you want to run it again, preparing a new statement is the simplest path.
 - `Connection::prepare` accepts exactly one SQL statement. Empty input, comment-only input, and additional statements after the first one raise `SQLITE_MISUSE`; trailing whitespace, comments, and empty semicolons are allowed.
 - Parameter indexes start at `1`, while column indexes start at `0`. It is easy to mix these up.

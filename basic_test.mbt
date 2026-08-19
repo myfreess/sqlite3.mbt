@@ -156,3 +156,64 @@ test "prepare accepts exactly one SQL statement" {
   stmt.finalize()
   conn.close()
 }
+
+///|
+test "statement aliases share finalization state" {
+  let conn = @sqlite3.Connection::open(":memory:")
+  let stmt = conn.prepare("SELECT 1")
+  let stmt_copy = stmt
+  stmt.finalize()
+  stmt_copy.finalize()
+  let error = @test.expect_error(() => stmt_copy.step())
+  match error {
+    SqliteError((code, _)) => assert_eq(code, @sqlite3.SQLITE_MISUSE)
+  }
+  conn.close()
+}
+
+///|
+test "connection aliases share close state" {
+  let conn = @sqlite3.Connection::open(":memory:")
+  let conn_copy = conn
+  conn.close()
+  conn_copy.close()
+  let error = @test.expect_error(() => conn_copy.prepare("SELECT 1"))
+  match error {
+    SqliteError((code, _)) => assert_eq(code, @sqlite3.SQLITE_MISUSE)
+  }
+}
+
+///|
+test "close keeps a busy connection open" {
+  let conn = @sqlite3.Connection::open(":memory:")
+  let stmt = conn.prepare("SELECT 1")
+  let error = @test.expect_error(() => conn.close())
+  match error {
+    SqliteError((code, _)) => assert_eq(code, @sqlite3.SQLITE_BUSY)
+  }
+  assert_true(stmt.step())
+  stmt.finalize()
+  conn.close()
+}
+
+///|
+test "finalize consumes a statement after an execution error" {
+  let conn = @sqlite3.Connection::open(":memory:")
+  let create = conn.prepare("CREATE TABLE unique_values (value INTEGER UNIQUE)")
+  create.step_once()
+  create.finalize()
+  let first = conn.prepare("INSERT INTO unique_values VALUES (1)")
+  first.step_once()
+  first.finalize()
+  let duplicate = conn.prepare("INSERT INTO unique_values VALUES (1)")
+  let step_error = @test.expect_error(() => duplicate.step_once())
+  match step_error {
+    SqliteError((code, _)) => assert_eq(code & 0xFF, @sqlite3.SQLITE_CONSTRAINT)
+  }
+  let finalize_error = @test.expect_error(() => duplicate.finalize())
+  match finalize_error {
+    SqliteError((code, _)) => assert_eq(code & 0xFF, @sqlite3.SQLITE_CONSTRAINT)
+  }
+  duplicate.finalize()
+  conn.close()
+}
