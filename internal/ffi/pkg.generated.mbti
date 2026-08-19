@@ -6,8 +6,6 @@ import {
 }
 
 // Values
-pub fn sqlite3_allocate() -> Sqlite3
-
 pub fn sqlite3_bind_blob(Sqlite3Stmt, Int, Bytes) -> Int
 
 pub fn sqlite3_bind_double(Sqlite3Stmt, Int, Double) -> Int
@@ -44,21 +42,21 @@ pub fn sqlite3_exec(Sqlite3, Bytes) -> Int
 
 pub fn sqlite3_finalize(Sqlite3Stmt) -> Int
 
-pub fn sqlite3_open_v2(Bytes, Sqlite3, Int) -> Int
+pub fn sqlite3_open_v2(Bytes, Int, @ref.Ref[Int]) -> Sqlite3
 
-pub fn sqlite3_prepare16_v2(Sqlite3, String, Sqlite3Stmt, @ref.Ref[Int]) -> Int
+pub fn sqlite3_prepare16_v2(Sqlite3, String, @ref.Ref[Int], @ref.Ref[Int]) -> Sqlite3Stmt
 
 pub fn sqlite3_reset(Sqlite3Stmt) -> Int
 
 pub fn sqlite3_step(Sqlite3Stmt) -> Int
 
-pub fn sqlite3_stmt_allocate() -> Sqlite3Stmt
-
 // Errors
 
 // Types and methods
+#external
 pub type Sqlite3
 
+#external
 pub type Sqlite3Stmt
 
 // Type aliases

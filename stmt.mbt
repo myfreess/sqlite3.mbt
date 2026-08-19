@@ -1,5 +1,24 @@
 ///|
-struct Statement(@ffi.Sqlite3Stmt)
+struct Statement(Ref[@ffi.Sqlite3Stmt?])
+
+///|
+fn Statement::handle(
+  self : Statement,
+  loc : SourceLoc,
+) -> @ffi.Sqlite3Stmt raise SqliteError {
+  match self.0.val {
+    Some(handle) => handle
+    None => raise SqliteError((SQLITE_MISUSE, loc))
+  }
+}
+
+///|
+fn Statement::handle_for_column(self : Statement) -> @ffi.Sqlite3Stmt {
+  match self.0.val {
+    Some(handle) => handle
+    None => abort("sqlite3: column access after statement finalization")
+  }
+}
 
 ///|
 fn sql_tail_is_ignorable(sql : String, start : Int) -> Bool {
@@ -26,11 +45,16 @@ pub fn Connection::prepare(
   if stmt.contains_code_unit(0x0000) {
     raise SqliteError((SQLITE_MISUSE, loc))
   }
-  let out = @ffi.sqlite3_stmt_allocate()
   let tail_offset = Ref(-1)
-  let rescode = @ffi.sqlite3_prepare16_v2(self.0, stmt, out, tail_offset)
-  if rescode != SQLITE_OK {
-    raise SqliteError((rescode, loc))
+  let rescode = Ref(SQLITE_OK)
+  let out = @ffi.sqlite3_prepare16_v2(
+    self.handle(loc),
+    stmt,
+    tail_offset,
+    rescode,
+  )
+  if rescode.val != SQLITE_OK {
+    raise SqliteError((rescode.val, loc))
   }
   if tail_offset.val < 0 {
     raise SqliteError((SQLITE_MISUSE, loc))
@@ -40,7 +64,7 @@ pub fn Connection::prepare(
     let _ = @ffi.sqlite3_finalize(out)
     raise SqliteError((SQLITE_MISUSE, loc))
   }
-  Statement(out)
+  Statement(Ref(Some(out)))
 }
 
 ///|
@@ -65,7 +89,7 @@ pub fn Statement::step(
   self : Statement,
   loc~ : SourceLoc,
 ) -> Bool raise SqliteError {
-  let rescode = @ffi.sqlite3_step(self.0)
+  let rescode = @ffi.sqlite3_step(self.handle(loc))
   match rescode {
     SQLITE_DONE => false
     SQLITE_ROW => true
@@ -90,8 +114,15 @@ pub fn Statement::finalize(
   self : Statement,
   loc~ : SourceLoc,
 ) -> Unit raise SqliteError {
-  let rescode = @ffi.sqlite3_finalize(self.0)
-  if rescode != SQLITE_OK {
-    raise SqliteError((rescode, loc))
+  match self.0.val {
+    None => ()
+    Some(handle) => {
+      // sqlite3_finalize consumes the statement even when it reports an error.
+      self.0.val = None
+      let rescode = @ffi.sqlite3_finalize(handle)
+      if rescode != SQLITE_OK {
+        raise SqliteError((rescode, loc))
+      }
+    }
   }
 }
