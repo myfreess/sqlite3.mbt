@@ -9,7 +9,11 @@ pub extern "c" fn sqlite3_allocate() -> Sqlite3 = "moonbit_sqlite3_allocate"
 
 ///|
 #borrow(filename, db)
-pub extern "c" fn sqlite3_open(filename : Bytes, db : Sqlite3) -> Int = "moonbit_sqlite3_open"
+pub extern "c" fn sqlite3_open_v2(
+  filename : Bytes,
+  db : Sqlite3,
+  flags : Int,
+) -> Int = "moonbit_sqlite3_open_v2"
 
 ///|
 #borrow(db)
@@ -17,7 +21,7 @@ pub extern "c" fn sqlite3_close(db : Sqlite3) -> Int = "moonbit_sqlite3_close"
 
 ///|
 #borrow(db)
-pub extern "c" fn sqlite3_errmsg(db : Sqlite3) -> Bytes = "moonbit_sqlite3_errmsg"
+pub extern "c" fn sqlite3_errmsg(db : Sqlite3) -> String = "moonbit_sqlite3_errmsg"
 
 ///|
 #borrow(db)
@@ -31,12 +35,15 @@ pub extern "c" fn sqlite3_exec(db : Sqlite3, sql : Bytes) -> Int = "moonbit_sqli
 pub extern "c" fn sqlite3_stmt_allocate() -> Sqlite3Stmt = "moonbit_sqlite3_stmt_allocate"
 
 ///|
-#borrow(db, sql, stmt)
-pub extern "c" fn sqlite3_prepare_v2(
+/// `tail_offset` is measured in UTF-16 code units, or -1 when SQLite produces
+/// no statement.
+#borrow(db, sql, stmt, tail_offset)
+pub extern "c" fn sqlite3_prepare16_v2(
   db : Sqlite3,
-  sql : Bytes,
+  sql : String,
   stmt : Sqlite3Stmt,
-) -> Int = "moonbit_sqlite3_prepare_v2"
+  tail_offset : Ref[Int],
+) -> Int = "moonbit_sqlite3_prepare16_v2"
 
 ///|
 #borrow(stmt)
@@ -85,7 +92,7 @@ pub extern "c" fn sqlite3_bind_double(
 pub extern "c" fn sqlite3_bind_text(
   stmt : Sqlite3Stmt,
   idx : Int,
-  text : Bytes,
+  text : String,
 ) -> Int = "moonbit_sqlite3_bind_text"
 
 ///|
@@ -119,7 +126,7 @@ pub extern "c" fn sqlite3_column_double(
 
 ///|
 #borrow(stmt)
-pub extern "c" fn sqlite3_column_text(stmt : Sqlite3Stmt, idx : Int) -> Bytes = "moonbit_sqlite3_column_text"
+pub extern "c" fn sqlite3_column_text(stmt : Sqlite3Stmt, idx : Int) -> String = "moonbit_sqlite3_column_text"
 
 ///|
 #borrow(stmt)

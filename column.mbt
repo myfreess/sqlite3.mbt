@@ -25,5 +25,5 @@ pub impl Column for Bytes with fn column(stmt, index) {
 
 ///|
 pub impl Column for String with fn column(stmt, index) {
-  @utf8.decode_lossy(@ffi.sqlite3_column_text(stmt.0, index))
+  @ffi.sqlite3_column_text(stmt.0, index)
 }

@@ -47,7 +47,7 @@ pub impl Bind for String with fn bind(
   value,
   loc~ : SourceLoc,
 ) {
-  let rescode = @ffi.sqlite3_bind_text(stmt.0, param_index, @utf8.encode(value))
+  let rescode = @ffi.sqlite3_bind_text(stmt.0, param_index, value)
   if rescode != SQLITE_OK {
     raise SqliteError((rescode, loc))
   }

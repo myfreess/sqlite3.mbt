@@ -196,8 +196,10 @@ The current public implementations support the following MoonBit types:
 
 - This is a manual resource management API. Every `Statement` should be explicitly `finalize()`d, and every `Connection` should be explicitly `close()`d.
 - The current public API does not expose `reset`, so a statement that has already been executed should generally be treated as a one-shot object. If you want to run it again, preparing a new statement is the simplest path.
+- `Connection::prepare` accepts exactly one SQL statement. Empty input, comment-only input, and additional statements after the first one raise `SQLITE_MISUSE`; trailing whitespace, comments, and empty semicolons are allowed.
 - Parameter indexes start at `1`, while column indexes start at `0`. It is easy to mix these up.
-- `String` values are encoded as UTF-8 when bound. `String` reads use lossy UTF-8 decoding. If you need lossless raw byte handling, use `Bytes` instead.
+- SQL and `String` values cross the native FFI boundary as UTF-16LE. The native backend intentionally rejects big-endian and unknown-endian targets at compile time. SQLite converts text when the database file uses a different encoding. Use `Bytes` when the value is raw binary data rather than text.
+- `Connection::open` uses `sqlite3_open_v2`, so a new database defaults to UTF-8. To select UTF-16LE or UTF-16BE storage, run `PRAGMA encoding` before creating any schema objects; this choice is independent of the native string API.
 - There is currently no public API for binding or decoding `NULL`, and no public column-type inspection API. If you need to distinguish `NULL` precisely, you will need to extend the library.
 - The package is intentionally focused on SQLite basics and does not add transaction wrappers, batch helpers, or named-parameter support.
 

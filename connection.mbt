@@ -2,6 +2,12 @@
 struct Connection(@ffi.Sqlite3)
 
 ///|
+const SQLITE_OPEN_READWRITE : Int = 0x00000002
+
+///|
+const SQLITE_OPEN_CREATE : Int = 0x00000004
+
+///|
 #callsite(autofill(loc))
 pub fn Connection::open(
   filename : String,
@@ -9,7 +15,8 @@ pub fn Connection::open(
 ) -> Connection raise SqliteError {
   let filename = @utf8.encode(filename)
   let db = @ffi.sqlite3_allocate()
-  let rescode = @ffi.sqlite3_open(filename, db)
+  let flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE
+  let rescode = @ffi.sqlite3_open_v2(filename, db, flags)
   if rescode == SQLITE_OK {
     return Connection(db)
   } else {
