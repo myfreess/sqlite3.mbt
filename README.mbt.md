@@ -2,14 +2,14 @@
 
 `moonbit-community/sqlite3` is a lightweight, low-level SQLite3 binding for MoonBit. It exposes the core SQLite C API workflow for opening connections, preparing statements, binding parameters, stepping through results, and reading column values. It is intended for cases where you want a small and direct embedded database interface rather than an ORM or a full query framework.
 
-This package currently supports only the `native` target and vendors the SQLite amalgamation source directly in the repository. The bundled SQLite version in this repository is `3.49.1`.
+This package supports the `native` and `js` targets. The native backend vendors SQLite `3.49.1`; the JavaScript backend uses Node.js [`node:sqlite`](https://nodejs.org/api/sqlite.html) and requires Node.js 24.15 or newer.
 
 ## Features
 
 - Thin wrapper design with a small API surface that stays close to SQLite's native workflow.
 - Support for prepared statements, positional parameter binding, and row-by-row result reading.
 - Common SQLite result code constants exported for matching and diagnostics.
-- Ships with `sqlite3.c` and `sqlite3.h`, so it does not rely on a system-installed SQLite.
+- The native backend ships with `sqlite3.c` and `sqlite3.h`, while the JavaScript backend uses the SQLite bundled with Node.js.
 
 ## Installation
 
@@ -178,7 +178,7 @@ test "error handling" {
 - `Statement::step()`: execute one step. Query statements return `true` when a row is available and `false` when iteration is complete.
 - `Statement::step_once()`: execute once and require that the statement produces no row. This is suitable for `CREATE`, `INSERT`, `UPDATE`, and `DELETE`. If the statement does return a row, it raises `SQLITE_ROW`.
 - `Statement::column(index)`: read a column value from the current row. Column indexes start at `0`.
-- `Statement::finalize()`: destroy the prepared statement and release its native resources.
+- `Statement::finalize()`: release the prepared statement resources held by the backend adapter.
 
 ### `Bind` and `Column`
 
@@ -195,11 +195,14 @@ The current public implementations support the following MoonBit types:
 ## Constraints and Notes
 
 - This is a manual resource management API. Every `Statement` should be explicitly `finalize()`d, and every `Connection` should be explicitly `close()`d.
+- The `js` target runs only on Node.js; browser JavaScript runtimes do not provide `node:sqlite`.
 - The current public API does not expose `reset`, so a statement that has already been executed should generally be treated as a one-shot object. If you want to run it again, preparing a new statement is the simplest path.
 - `Connection::prepare` accepts exactly one SQL statement. Empty input, comment-only input, and additional statements after the first one raise `SQLITE_MISUSE`; trailing whitespace, comments, and empty semicolons are allowed.
 - Parameter indexes start at `1`, while column indexes start at `0`. It is easy to mix these up.
-- SQL and `String` values cross the native FFI boundary as UTF-16LE. The native backend intentionally rejects big-endian and unknown-endian targets at compile time. SQLite converts text when the database file uses a different encoding. Use `Bytes` when the value is raw binary data rather than text.
-- `Connection::open` uses `sqlite3_open_v2`, so a new database defaults to UTF-8. To select UTF-16LE or UTF-16BE storage, run `PRAGMA encoding` before creating any schema objects; this choice is independent of the native string API.
+- Use anonymous `?` placeholders for SQL shared by both backends. Named parameters are not supported, and numbered `?NNN` placeholders do not have uniform binding behavior across `node:sqlite` versions.
+- SQL and `String` values cross the native FFI boundary as UTF-16LE. The native backend intentionally rejects big-endian and unknown-endian targets at compile time. The JavaScript backend passes JavaScript strings to `node:sqlite`. SQLite converts text when the database file uses a different encoding. Use `Bytes` when the value is raw binary data rather than text.
+- `Connection::open` uses `sqlite3_open_v2` on native and `DatabaseSync` on JavaScript, so a new database defaults to UTF-8. To select UTF-16LE or UTF-16BE storage, run `PRAGMA encoding` before creating any schema objects; this choice is independent of the backend string interface.
+- `node:sqlite` accepts bound values when a statement is executed rather than through a separate bind operation. The JavaScript adapter therefore buffers indexed bindings until the first `step()`; binding errors detected by Node.js can surface from `step()` instead of `bind()`.
 - There is currently no public API for binding or decoding `NULL`, and no public column-type inspection API. If you need to distinguish `NULL` precisely, you will need to extend the library.
 - The package is intentionally focused on SQLite basics and does not add transaction wrappers, batch helpers, or named-parameter support.
 

@@ -156,3 +156,61 @@ test "prepare accepts exactly one SQL statement" {
   stmt.finalize()
   conn.close()
 }
+
+///|
+test "integer and blob values round trip across backends" {
+  let conn = @sqlite3.Connection::open(":memory:")
+  let create = conn.prepare("CREATE TABLE values_test (i INTEGER, b BLOB)")
+  create.step_once()
+  create.finalize()
+  let expected_int = 9007199254740993L
+  let expected_blob : Bytes = [0x00, 0x80, 0xFF]
+  let insert = conn.prepare("INSERT INTO values_test VALUES (?, ?)")
+  insert.bind(index=1, expected_int)
+  insert.bind(index=2, expected_blob)
+  insert.step_once()
+  insert.finalize()
+  let select = conn.prepare("SELECT i, b FROM values_test")
+  assert_true(select.step())
+  let actual_int : Int64 = select.column(index=0)
+  let actual_blob : Bytes = select.column(index=1)
+  assert_eq(actual_int, expected_int)
+  assert_eq(actual_blob, expected_blob)
+  select.finalize()
+  conn.close()
+}
+
+///|
+test "close preserves a connection with a live statement" {
+  let conn = @sqlite3.Connection::open(":memory:")
+  let stmt = conn.prepare("SELECT 1")
+  let close_error = @test.expect_error(() => conn.close())
+  match close_error {
+    SqliteError((code, _)) => assert_eq(code, @sqlite3.SQLITE_BUSY)
+  }
+  assert_true(stmt.step())
+  let value : Int = stmt.column(index=0)
+  assert_eq(value, 1)
+  stmt.finalize()
+  conn.close()
+}
+
+///|
+test "errors use primary SQLite result codes" {
+  let conn = @sqlite3.Connection::open(":memory:")
+  let create = conn.prepare("CREATE TABLE unique_test (id INTEGER PRIMARY KEY)")
+  create.step_once()
+  create.finalize()
+  let first = conn.prepare("INSERT INTO unique_test VALUES (1)")
+  first.step_once()
+  first.finalize()
+  let duplicate = conn.prepare("INSERT INTO unique_test VALUES (1)")
+  let insert_error = @test.expect_error(() => duplicate.step_once())
+  match insert_error {
+    SqliteError((code, _)) => assert_eq(code, @sqlite3.SQLITE_CONSTRAINT)
+  }
+  duplicate.finalize() catch {
+    _ => ()
+  }
+  conn.close()
+}

@@ -2,7 +2,6 @@ import {
   "moonbitlang/core/debug",
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/core/lexbuf",
-  "moonbit-community/sqlite3/internal/ffi",
 }
 
 import {
@@ -10,5 +9,13 @@ import {
 } for "test"
 
 options(
-  backend: [ "native" ],
+  backend: [ "native", "js" ],
+  "native-stub": [ "internal/ffi/stub.c", "internal/ffi/sqlite3.c" ],
+  targets: {
+    "connection_native.mbt": [ "native" ],
+    "ffi_native.mbt": [ "native" ],
+    "stmt_native.mbt": [ "native" ],
+    "connection_js.mbt": [ "js" ],
+    "stmt_js.mbt": [ "js" ],
+  },
 )

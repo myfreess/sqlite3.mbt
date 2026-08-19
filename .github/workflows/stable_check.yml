@@ -8,11 +8,12 @@ on:
 
 jobs:
   check:
-    name: check (${{ matrix.os }})
+    name: check (${{ matrix.os }}, ${{ matrix.target }})
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
+        target: [native, js]
     runs-on: ${{ matrix.os }}
     continue-on-error: false
     steps:
@@ -20,6 +21,12 @@ jobs:
 
       - name: install
         uses: moonbit-community/setup-moonbit@04293a8a813bfd4b6c2fce22701b52ae1050d100
+
+      - name: install Node.js
+        if: matrix.target == 'js'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
 
       - name: moon version
         run: |
@@ -30,7 +37,7 @@ jobs:
           moon update
 
       - name: moon check
-        run: moon check
+        run: moon check --target ${{ matrix.target }}
 
       - name: format diff
         run: |
@@ -39,7 +46,7 @@ jobs:
 
       - name: info check
         run: |
-          moon info
+          moon info --target ${{ matrix.target }}
           git diff --exit-code
 
       - name: Set ulimit
@@ -49,4 +56,4 @@ jobs:
 
       - name: moon test
         run: |
-          moon test
+          moon test --target ${{ matrix.target }}
