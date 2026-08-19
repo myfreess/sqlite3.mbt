@@ -1,6 +1,7 @@
 import {
   "moonbitlang/core/debug",
   "moonbitlang/core/encoding/utf8",
+  "moonbitlang/core/lexbuf",
   "moonbit-community/sqlite3/internal/ffi",
 }
 

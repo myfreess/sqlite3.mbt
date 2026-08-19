@@ -1,6 +1,10 @@
 // Generated using `moon info`, DON'T EDIT IT
 package "moonbit-community/sqlite3/internal/ffi"
 
+import {
+  "moonbitlang/core/ref",
+}
+
 // Values
 pub fn sqlite3_allocate() -> Sqlite3
 
@@ -14,7 +18,7 @@ pub fn sqlite3_bind_int64(Sqlite3Stmt, Int, Int64) -> Int
 
 pub fn sqlite3_bind_null(Sqlite3Stmt, Int) -> Int
 
-pub fn sqlite3_bind_text(Sqlite3Stmt, Int, Bytes) -> Int
+pub fn sqlite3_bind_text(Sqlite3Stmt, Int, String) -> Int
 
 pub fn sqlite3_close(Sqlite3) -> Int
 
@@ -28,21 +32,21 @@ pub fn sqlite3_column_int(Sqlite3Stmt, Int) -> Int
 
 pub fn sqlite3_column_int64(Sqlite3Stmt, Int) -> Int64
 
-pub fn sqlite3_column_text(Sqlite3Stmt, Int) -> Bytes
+pub fn sqlite3_column_text(Sqlite3Stmt, Int) -> String
 
 pub fn sqlite3_column_type(Sqlite3Stmt, Int) -> Int
 
 pub fn sqlite3_errcode(Sqlite3) -> Int
 
-pub fn sqlite3_errmsg(Sqlite3) -> Bytes
+pub fn sqlite3_errmsg(Sqlite3) -> String
 
 pub fn sqlite3_exec(Sqlite3, Bytes) -> Int
 
 pub fn sqlite3_finalize(Sqlite3Stmt) -> Int
 
-pub fn sqlite3_open(Bytes, Sqlite3) -> Int
+pub fn sqlite3_open_v2(Bytes, Sqlite3, Int) -> Int
 
-pub fn sqlite3_prepare_v2(Sqlite3, Bytes, Sqlite3Stmt) -> Int
+pub fn sqlite3_prepare16_v2(Sqlite3, String, Sqlite3Stmt, @ref.Ref[Int]) -> Int
 
 pub fn sqlite3_reset(Sqlite3Stmt) -> Int
 

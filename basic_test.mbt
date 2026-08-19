@@ -61,5 +61,98 @@ test {
   create_company(conn)
   insert_company(conn)
   select_company(conn)
+  let encoding = conn.prepare("PRAGMA encoding")
+  assert_true(encoding.step())
+  let encoding_name : String = encoding.column(index=0)
+  assert_eq(encoding_name, "UTF-8")
+  encoding.finalize()
+  conn.close()
+}
+
+///|
+test "UTF-16LE strings with a UTF-16LE database" {
+  let conn = @sqlite3.Connection::open(":memory:")
+  let set_encoding = conn.prepare("PRAGMA encoding = 'UTF-16le'")
+  set_encoding.step_once()
+  set_encoding.finalize()
+  let create = conn.prepare("CREATE TABLE 月球 (问候 TEXT)")
+  create.step_once()
+  create.finalize()
+  let insert = conn.prepare("INSERT INTO 月球 (问候) VALUES (?)")
+  insert.bind(index=1, "你好，MoonBit 🌙")
+  insert.step_once()
+  insert.finalize()
+  let select = conn.prepare("SELECT 问候 FROM 月球")
+  assert_true(select.step())
+  let greeting : String = select.column(index=0)
+  assert_eq(greeting, "你好，MoonBit 🌙")
+  select.finalize()
+  let encoding = conn.prepare("PRAGMA encoding")
+  assert_true(encoding.step())
+  let encoding_name : String = encoding.column(index=0)
+  assert_eq(encoding_name, "UTF-16le")
+  encoding.finalize()
+  let mut prepare_failed = false
+  try {
+    let _ = conn.prepare("SELECT * FROM 不存在")
+  } catch {
+    _ => prepare_failed = true
+  }
+  assert_true(prepare_failed)
+  assert_eq(conn.get_errmsg(), "no such table: 不存在")
+  conn.close()
+}
+
+///|
+test "UTF-16LE strings with a UTF-16BE database" {
+  let conn = @sqlite3.Connection::open(":memory:")
+  let set_encoding = conn.prepare("PRAGMA encoding = 'UTF-16be'")
+  set_encoding.step_once()
+  set_encoding.finalize()
+  let create = conn.prepare("CREATE TABLE 文本 (内容 TEXT)")
+  create.step_once()
+  create.finalize()
+  let insert = conn.prepare("INSERT INTO 文本 (内容) VALUES (?)")
+  insert.bind(index=1, "数据库 🌙")
+  insert.step_once()
+  insert.finalize()
+  let select = conn.prepare("SELECT 内容 FROM 文本")
+  assert_true(select.step())
+  let content : String = select.column(index=0)
+  assert_eq(content, "数据库 🌙")
+  select.finalize()
+  let encoding = conn.prepare("PRAGMA encoding")
+  assert_true(encoding.step())
+  let encoding_name : String = encoding.column(index=0)
+  assert_eq(encoding_name, "UTF-16be")
+  encoding.finalize()
+  conn.close()
+}
+
+///|
+test "prepare accepts exactly one SQL statement" {
+  let conn = @sqlite3.Connection::open(":memory:")
+  let empty_error = @test.expect_error(() => conn.prepare(""))
+  match empty_error {
+    SqliteError((code, _)) => assert_eq(code, @sqlite3.SQLITE_MISUSE)
+  }
+  @test.assert_raise(() => conn.prepare("-- comment only"))
+  @test.assert_raise(() => conn.prepare("SELECT '🌙'; SELECT 2"))
+  @test.assert_raise(() => conn.prepare("SELECT 1; /* comment */ SELECT 2"))
+  @test.assert_raise(() => conn.prepare("SELECT 1;\u{00}SELECT 2"))
+  let trailing_unclosed_comment = conn.prepare("SELECT 1; /*")
+  trailing_unclosed_comment.finalize()
+  let stmt = conn.prepare(
+    (
+      #|SELECT '🌙';
+      #|-- trailing line comment
+      #|/* trailing block comment */ ;
+    ),
+  )
+  assert_true(stmt.step())
+  let value : String = stmt.column(index=0)
+  assert_eq(value, "🌙")
+  assert_eq(stmt.step(), false)
+  stmt.finalize()
   conn.close()
 }
