@@ -79,6 +79,24 @@ pub fn[T : Bind] Statement::bind(
 }
 
 ///|
+/// Bind SQL `NULL` to a parameter.
+///
+/// Separate from `bind` because `Bind` decides the SQLite type from the value
+/// it is handed, and `NULL` has no value to hand it. Parameter indexes start at
+/// `1`, matching `bind` and the SQLite C API.
+#callsite(autofill(loc))
+pub fn Statement::bind_null(
+  self : Statement,
+  index~ : Int,
+  loc~ : SourceLoc,
+) -> Unit raise SqliteError {
+  let rescode = @ffi.sqlite3_bind_null(self.handle(loc), index)
+  if rescode != SQLITE_OK {
+    raise SqliteError((rescode, loc))
+  }
+}
+
+///|
 pub fn[T : Column] Statement::column(self : Statement, index~ : Int) -> T {
   T::column(self, index)
 }

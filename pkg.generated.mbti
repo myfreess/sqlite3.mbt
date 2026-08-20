@@ -98,6 +98,8 @@ pub fn Connection::prepare(Self, String, loc~ : SourceLoc) -> Statement raise Sq
 type Statement
 #callsite(autofill(loc))
 pub fn[T : Bind] Statement::bind(Self, index~ : Int, T, loc~ : SourceLoc) -> Unit raise SqliteError
+#callsite(autofill(loc))
+pub fn Statement::bind_null(Self, index~ : Int, loc~ : SourceLoc) -> Unit raise SqliteError
 pub fn[T : Column] Statement::column(Self, index~ : Int) -> T
 #callsite(autofill(loc))
 pub fn Statement::finalize(Self, loc~ : SourceLoc) -> Unit raise SqliteError

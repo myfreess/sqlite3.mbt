@@ -176,6 +176,7 @@ test "error handling" {
 ### `Statement`
 
 - `Statement::bind(index, value)`: bind a parameter. Parameter indexes start at `1`, matching the SQLite C API.
+- `Statement::bind_null(index)`: bind SQL `NULL` to a parameter. This is separate from `bind` because `Bind` decides the SQLite type from the value it is handed, and `NULL` has no value to hand it.
 - `Statement::step()`: execute one step. Query statements return `true` when a row is available and `false` when iteration is complete.
 - `Statement::step_once()`: execute once and require that the statement produces no row. This is suitable for `CREATE`, `INSERT`, `UPDATE`, and `DELETE`. If the statement does return a row, it raises `SQLITE_ROW`.
 - `Statement::column(index)`: read a column value from the current row. Column indexes start at `0`.
@@ -193,6 +194,8 @@ The current public implementations support the following MoonBit types:
 | `String` | `TEXT` | `String` |
 | `Bytes` | `BLOB` | `Bytes` |
 
+`NULL` is absent from this table because it is not a MoonBit type. Write it with `Statement::bind_null`.
+
 ## Constraints and Notes
 
 - This is a manual resource management API. Every `Statement` must be explicitly `finalize()`d, and every `Connection` must be explicitly `close()`d. Dropping these values does not release SQLite resources on any backend.
@@ -202,7 +205,7 @@ The current public implementations support the following MoonBit types:
 - Parameter indexes start at `1`, while column indexes start at `0`. It is easy to mix these up.
 - SQL and `String` values cross both backend boundaries as UTF-16 code units. Native targets require little-endian UTF-16, while WebAssembly memory is little-endian by definition. SQLite converts text when the database file uses a different encoding. Use `Bytes` when the value is raw binary data rather than text.
 - `Connection::open` uses `sqlite3_open_v2`, so a new database defaults to UTF-8. To select UTF-16LE or UTF-16BE storage, run `PRAGMA encoding` before creating any schema objects; this choice is independent of the native string API.
-- There is currently no public API for binding or decoding `NULL`, and no public column-type inspection API. If you need to distinguish `NULL` precisely, you will need to extend the library.
+- There is currently no public column-type inspection API, so a `NULL` column read as an `Int` arrives as `0`, indistinguishable from a stored zero. If you need to tell the two apart, you will need to extend the library.
 - The package is intentionally focused on SQLite basics and does not add transaction wrappers, batch helpers, or named-parameter support.
 
 ## Result Code Constants
