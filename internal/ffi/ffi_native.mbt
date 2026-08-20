@@ -18,6 +18,9 @@ extern "c" fn sqlite3_open_v2_impl(
 extern "c" fn sqlite3_close_impl(db : Sqlite3Handle) -> Int = "sqlite3_close"
 
 ///|
+extern "c" fn sqlite3_is_null_impl(db : Sqlite3Handle) -> Bool = "moonbit_sqlite3_is_null"
+
+///|
 extern "c" fn sqlite3_errmsg_impl(db : Sqlite3Handle) -> String = "moonbit_sqlite3_errmsg"
 
 ///|

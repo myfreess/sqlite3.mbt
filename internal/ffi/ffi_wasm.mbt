@@ -155,6 +155,11 @@ fn sqlite3_close_impl(database : Sqlite3Handle) -> Int {
 }
 
 ///|
+fn sqlite3_is_null_impl(database : Sqlite3Handle) -> Bool {
+  database.0 == sqlite3_null_handle_import()
+}
+
+///|
 fn sqlite3_errmsg_impl(database : Sqlite3Handle) -> String {
   let length = sqlite3_errmsg16_length_import(database.0)
   let output = String::make(length, '\u0000')

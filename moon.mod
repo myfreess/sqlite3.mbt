@@ -1,6 +1,6 @@
 name = "moonbit-community/sqlite3"
 
-version = "0.1.7"
+version = "0.2.0"
 
 readme = "README.md"
 

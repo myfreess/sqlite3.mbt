@@ -40,6 +40,8 @@ pub fn sqlite3_errmsg(Sqlite3) -> String
 
 pub fn sqlite3_finalize(Sqlite3Stmt) -> Int
 
+pub fn sqlite3_is_null(Sqlite3) -> Bool
+
 pub fn sqlite3_open_v2(Bytes, Int, @ref.Ref[Int]) -> Sqlite3
 
 pub fn sqlite3_prepare16_v2(Sqlite3, String, @ref.Ref[Int], @ref.Ref[Int]) -> Sqlite3Stmt

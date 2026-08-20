@@ -19,6 +19,11 @@ pub fn sqlite3_close(database : Sqlite3) -> Int {
 }
 
 ///|
+pub fn sqlite3_is_null(database : Sqlite3) -> Bool {
+  sqlite3_is_null_impl(database.0)
+}
+
+///|
 pub fn sqlite3_errmsg(database : Sqlite3) -> String {
   sqlite3_errmsg_impl(database.0)
 }

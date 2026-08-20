@@ -18,9 +18,10 @@ that accidentally omitted `close()` or `finalize()` could appear to work on
 native while leaking on WebAssembly. Requiring explicit release gives every
 backend the same contract.
 
-The shared `Ref[Option[handle]]` state is also intentional. It makes copies of
-a `Connection` or `Statement` observe the same closed or finalized state and
-prevents a raw handle from being used again after explicit release.
+Connections keep their optional handle in shared `Ref` state, while statements
+use a mutable struct that also records current-row validity and retains the
+originating connection for error-message capture. Copies therefore observe the
+same closed or finalized state and cannot reuse a released raw handle.
 
 ## Native FFI adapters
 

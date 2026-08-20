@@ -1,6 +1,7 @@
 #include "sqlite3.h"
 #include <assert.h>
 #include <moonbit.h>
+#include <stdbool.h>
 #include <string.h>
 
 /* ---------- FFI functions ---------- */
@@ -21,6 +22,12 @@ moonbit_sqlite3_open_v2(
   sqlite3 *db = NULL;
   *rescode = sqlite3_open_v2((const char *)filename, &db, flags, NULL);
   return db;
+}
+
+MOONBIT_FFI_EXPORT
+bool
+moonbit_sqlite3_is_null(sqlite3 *db) {
+  return db == NULL;
 }
 
 MOONBIT_FFI_EXPORT
