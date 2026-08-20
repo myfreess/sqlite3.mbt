@@ -179,13 +179,40 @@ test "prepare accepts exactly one SQL statement" {
 }
 
 ///|
-test "statement aliases share finalization state" {
+test "statement aliases share row and finalization state" {
   let conn = @sqlite3.Connection::open(":memory:")
   let stmt = conn.prepare("SELECT 1")
   let stmt_copy = stmt
-  stmt.finalize()
+  assert_true(stmt.step())
+  let value : Int64 = stmt_copy.column(index=0)
+  assert_eq(value, 1L)
+  assert_eq(stmt_copy.step(), false)
+  let after_done = @test.expect_error(() => {
+    let _ : Int64 = stmt.column(index=0)
+  })
+  assert_true(
+    after_done
+    is @sqlite3.SqliteError(
+      code=Misuse,
+      extended=None,
+      msg="sqlite3: statement has no current row"
+    ),
+  )
+  assert_true(stmt.step())
   stmt_copy.finalize()
-  let error = @test.expect_error(() => stmt_copy.step())
+  let after_finalize = @test.expect_error(() => {
+    let _ : Int64 = stmt.column(index=0)
+  })
+  assert_true(
+    after_finalize
+    is @sqlite3.SqliteError(
+      code=Misuse,
+      extended=None,
+      msg="sqlite3: statement is finalized"
+    ),
+  )
+  stmt_copy.finalize()
+  let error = @test.expect_error(() => stmt.step())
   match error {
     @sqlite3.SqliteError(code~, extended~, msg~) => {
       assert_eq(code, @sqlite3.ErrorCode::Misuse)

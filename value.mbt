@@ -44,8 +44,8 @@ pub impl Bind for Value with fn bind(stmt, param_index, value) {
 
 ///|
 pub impl Column for Value with fn column(stmt, index) {
-  let handle = stmt.handle_for_column(index)
-  match @ffi.sqlite3_column_type(handle, index) {
+  let (handle, storage_class) = stmt.column_info(index)
+  match storage_class {
     SQLITE_INTEGER => Integer(@ffi.sqlite3_column_int64(handle, index))
     SQLITE_FLOAT => Real(@ffi.sqlite3_column_double(handle, index))
     SQLITE_TEXT => Text(stmt.column(index~))

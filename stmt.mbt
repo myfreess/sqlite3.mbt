@@ -2,6 +2,7 @@
 struct Statement {
   mut handle : @ffi.Sqlite3Stmt?
   mut has_row : Bool
+  mut column_types : Array[Int]?
   connection : Connection
 }
 
@@ -16,10 +17,10 @@ fn Statement::get_handle(
 }
 
 ///|
-fn Statement::handle_for_column(
+fn Statement::column_info(
   self : Statement,
   index : Int,
-) -> @ffi.Sqlite3Stmt raise SqliteError {
+) -> (@ffi.Sqlite3Stmt, Int) raise SqliteError {
   match (self.handle, self.has_row) {
     (Some(handle), true) => {
       let column_count = @ffi.sqlite3_column_count(handle)
@@ -28,7 +29,21 @@ fn Statement::handle_for_column(
           "sqlite3: column index \{index} is outside 0..<\{column_count}",
         )
       }
-      handle
+      // SQLite only guarantees the initial storage class before a coercing
+      // accessor runs. Cache it on the first read of each cell so typed and
+      // dynamic reads remain order-independent within the current row.
+      let types = match self.column_types {
+        Some(types) => types
+        None => {
+          let types = Array::make(column_count, 0)
+          self.column_types = Some(types)
+          types
+        }
+      }
+      if types[index] == 0 {
+        types[index] = @ffi.sqlite3_column_type(handle, index)
+      }
+      (handle, types[index])
     }
     (None, _) => raise sqlite_misuse("sqlite3: statement is finalized")
     _ => raise sqlite_misuse("sqlite3: statement has no current row")
@@ -78,7 +93,7 @@ pub fn Connection::prepare(
     let _ = @ffi.sqlite3_finalize(out)
     raise sqlite_misuse("sqlite3: SQL contains more than one statement")
   }
-  { handle: Some(out), has_row: false, connection: self }
+  { handle: Some(out), has_row: false, column_types: None, connection: self }
 }
 
 ///|
@@ -102,6 +117,7 @@ pub fn[T : Column] Statement::column(
 pub fn Statement::step(self : Statement) -> Bool raise SqliteError {
   let handle = self.get_handle()
   self.has_row = false
+  self.column_types = None
   let rescode = @ffi.sqlite3_step(handle)
   match rescode {
     SQLITE_DONE => false
@@ -121,6 +137,7 @@ pub fn Statement::finalize(self : Statement) -> Unit raise SqliteError {
       // sqlite3_finalize consumes the statement even when it reports an error.
       self.handle = None
       self.has_row = false
+      self.column_types = None
       let rescode = @ffi.sqlite3_finalize(handle)
       if rescode != SQLITE_OK {
         raise self.error(rescode)

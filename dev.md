@@ -30,6 +30,15 @@ corresponding `sqlite3_*` symbol. The C stub is reserved for actual adaptation:
 reshaping open and prepare results, supplying omitted callback arguments, and
 copying strings or blobs across the ownership boundary.
 
+SQLite reports result-column conversion allocation failures only through the
+connection-wide error state. The text and BLOB adapters compare that state
+immediately before and after conversion, so an older `SQLITE_NOMEM` from
+another statement is not assigned to a legitimate empty or `NULL` value. A
+newly observed `SQLITE_NOMEM` invalidates the statement's current row. If the
+connection already reports `SQLITE_NOMEM`, SQLite provides no public API that
+can distinguish a simultaneous second conversion failure from that older
+state; the adapters avoid the unsafe false positive.
+
 ## Wasm FFI adapter
 
 The Wasm adapter targets moonrun's `moonbitlang/sqlite` import ABI. Native

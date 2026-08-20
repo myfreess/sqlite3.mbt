@@ -9,8 +9,10 @@ import {
   "moonbitlang/core/test",
 } for "test"
 
-// Keep derived traits as traits only; explicit extensions would add method-form
-// APIs such as `ErrorCode::equal` to the generated package interface.
+// The compiler currently emits warning 79 for public derived/implemented
+// traits even when their methods are intentionally not promoted. Block-level
+// suppression does not cover this interface diagnostic, while explicit
+// extensions would add method-form APIs to the generated interface.
 
 warnings = "-79"
 

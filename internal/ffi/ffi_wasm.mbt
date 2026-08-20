@@ -311,14 +311,19 @@ fn sqlite3_column_text_impl(
   index : Int,
   rescode : Ref[Int],
 ) -> String {
+  let prior_code = sqlite3_errcode_import(database.0)
   let length = sqlite3_column_text16_length_import(statement.0, index)
   if length == 0 {
     // The host deliberately makes no further SQLite call when the value
     // accessor returns NULL, leaving this error available to the guest.
     let code = sqlite3_errcode_import(database.0)
-    // A successful step may leave SQLITE_ROW here. Of the column conversion
-    // calls involved, only SQLITE_NOMEM denotes failure.
-    rescode.val = if code == SQLITE_NOMEM { code } else { SQLITE_OK }
+    // Connection error state is persistent, so only a transition to NOMEM can
+    // be attributed to this conversion rather than another statement.
+    rescode.val = if code == SQLITE_NOMEM && prior_code != SQLITE_NOMEM {
+      code
+    } else {
+      SQLITE_OK
+    }
     return ""
   }
   rescode.val = SQLITE_OK
@@ -342,11 +347,16 @@ fn sqlite3_column_blob_impl(
   index : Int,
   rescode : Ref[Int],
 ) -> Bytes {
+  let prior_code = sqlite3_errcode_import(database.0)
   let length = sqlite3_column_blob_length_import(statement.0, index)
   if length == 0 {
     let code = sqlite3_errcode_import(database.0)
     // Zero-length BLOBs and SQL NULL also produce a null pointer.
-    rescode.val = if code == SQLITE_NOMEM { code } else { SQLITE_OK }
+    rescode.val = if code == SQLITE_NOMEM && prior_code != SQLITE_NOMEM {
+      code
+    } else {
+      SQLITE_OK
+    }
     return b""
   }
   rescode.val = SQLITE_OK

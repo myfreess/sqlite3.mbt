@@ -50,3 +50,20 @@ test "typed columns remain available beside dynamic values" {
   stmt.finalize()
   conn.close()
 }
+
+///|
+test "dynamic values preserve the initial storage class after typed reads" {
+  let conn = @sqlite3.Connection::open(":memory:")
+  let stmt = conn.prepare("SELECT 42, '42'")
+  assert_true(stmt.step())
+  let integer_as_text : String = stmt.column(index=0)
+  let text_as_integer : Int64 = stmt.column(index=1)
+  assert_eq(integer_as_text, "42")
+  assert_eq(text_as_integer, 42L)
+  let integer : @sqlite3.Value = stmt.column(index=0)
+  let text : @sqlite3.Value = stmt.column(index=1)
+  assert_eq(integer, @sqlite3.Value::Integer(42L))
+  assert_eq(text, @sqlite3.Value::Text("42"))
+  stmt.finalize()
+  conn.close()
+}

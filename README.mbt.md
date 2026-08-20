@@ -231,12 +231,14 @@ domain guarantees that the value fits. Request `Value` when distinguishing
 - Parameter indexes start at `1`, while column indexes start at `0`. It is easy to mix these up.
 - SQL and `String` values cross both backend boundaries as UTF-16 code units. Native targets require little-endian UTF-16, while WebAssembly memory is little-endian by definition. SQLite converts text when the database file uses a different encoding. Use `Bytes` when the value is raw binary data rather than text.
 - `Connection::open` uses `sqlite3_open_v2`, so a new database defaults to UTF-8. To select UTF-16LE or UTF-16BE storage, run `PRAGMA encoding` before creating any schema objects; this choice is independent of the native string API.
-- The package does not expose declared column types or result-column names. `Value` reports the runtime storage class of a value in the current row.
+- The package does not expose declared column types or result-column names. `Value` reports the initial runtime storage class of a value in the current row. That class is cached before typed coercion, so reading the same cell through a typed decoder first does not change the later `Value` variant.
 - The package is intentionally focused on SQLite basics and does not add transaction wrappers, batch helpers, or named-parameter support.
 
 ## Error Codes
 
 `ErrorCode` represents SQLite's primary error categories, while `ExtendedCode` provides the additional classification returned by some SQLite operations. Unknown codes from a newer SQLite runtime are preserved as `Unknown(raw_code)`.
+
+SQLite may allocate while converting a result to `TEXT` or `BLOB`. Both adapters check that conversion immediately and raise `SqliteError(code=NoMem, ...)` when SQLite attributes a new allocation failure to it, rather than returning an empty value. Genuine empty values and SQL `NULL` retain SQLite's typed conversion behavior; request `Value` when they must be distinguished.
 
 ## Development and Verification
 
