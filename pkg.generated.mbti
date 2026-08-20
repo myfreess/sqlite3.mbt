@@ -86,6 +86,14 @@ pub suberror SqliteError {
 pub fn SqliteError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
+pub(all) enum ColumnType {
+  Integer
+  Float
+  Text
+  Blob
+  Null
+} derive(Eq, @debug.Debug)
+
 type Connection
 #callsite(autofill(loc))
 pub fn Connection::close(Self, loc~ : SourceLoc) -> Unit raise SqliteError
@@ -101,6 +109,7 @@ pub fn[T : Bind] Statement::bind(Self, index~ : Int, T, loc~ : SourceLoc) -> Uni
 #callsite(autofill(loc))
 pub fn Statement::bind_null(Self, index~ : Int, loc~ : SourceLoc) -> Unit raise SqliteError
 pub fn[T : Column] Statement::column(Self, index~ : Int) -> T
+pub fn Statement::column_type(Self, index~ : Int) -> ColumnType
 #callsite(autofill(loc))
 pub fn Statement::finalize(Self, loc~ : SourceLoc) -> Unit raise SqliteError
 #callsite(autofill(loc))

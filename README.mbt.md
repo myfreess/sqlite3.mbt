@@ -180,6 +180,7 @@ test "error handling" {
 - `Statement::step()`: execute one step. Query statements return `true` when a row is available and `false` when iteration is complete.
 - `Statement::step_once()`: execute once and require that the statement produces no row. This is suitable for `CREATE`, `INSERT`, `UPDATE`, and `DELETE`. If the statement does return a row, it raises `SQLITE_ROW`.
 - `Statement::column(index)`: read a column value from the current row. Column indexes start at `0`.
+- `Statement::column_type(index)`: report the storage class of a column in the current row. Call it before reading the value: a `NULL` column read as an `Int` arrives as `0`, indistinguishable from a stored zero.
 - `Statement::finalize()`: destroy the prepared statement and release its native resources.
 
 ### `Bind` and `Column`
@@ -194,7 +195,21 @@ The current public implementations support the following MoonBit types:
 | `String` | `TEXT` | `String` |
 | `Bytes` | `BLOB` | `Bytes` |
 
-`NULL` is absent from this table because it is not a MoonBit type. Write it with `Statement::bind_null`.
+`NULL` is absent from this table because it is not a MoonBit type. Write it with `Statement::bind_null` and detect it with `Statement::column_type`.
+
+### `ColumnType`
+
+`Statement::column_type` reports SQLite's storage class for the value in the current row:
+
+| `ColumnType` | SQLite storage class |
+| --- | --- |
+| `Integer` | `INTEGER` |
+| `Float` | `REAL` |
+| `Text` | `TEXT` |
+| `Blob` | `BLOB` |
+| `Null` | `NULL` |
+
+A storage class describes the *value*, not the column's declared type: a column declared `INTEGER` reports `Text` if text is what was stored in it.
 
 ## Constraints and Notes
 
@@ -205,7 +220,7 @@ The current public implementations support the following MoonBit types:
 - Parameter indexes start at `1`, while column indexes start at `0`. It is easy to mix these up.
 - SQL and `String` values cross both backend boundaries as UTF-16 code units. Native targets require little-endian UTF-16, while WebAssembly memory is little-endian by definition. SQLite converts text when the database file uses a different encoding. Use `Bytes` when the value is raw binary data rather than text.
 - `Connection::open` uses `sqlite3_open_v2`, so a new database defaults to UTF-8. To select UTF-16LE or UTF-16BE storage, run `PRAGMA encoding` before creating any schema objects; this choice is independent of the native string API.
-- There is currently no public column-type inspection API, so a `NULL` column read as an `Int` arrives as `0`, indistinguishable from a stored zero. If you need to tell the two apart, you will need to extend the library.
+- `Statement::column_type` is only meaningful after `step` has returned `true`, and should be called before `column` reads the value: SQLite does not guarantee the reported type once a conversion has happened.
 - The package is intentionally focused on SQLite basics and does not add transaction wrappers, batch helpers, or named-parameter support.
 
 ## Result Code Constants

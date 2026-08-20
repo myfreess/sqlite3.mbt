@@ -102,6 +102,24 @@ pub fn[T : Column] Statement::column(self : Statement, index~ : Int) -> T {
 }
 
 ///|
+/// The storage class of a column in the current row.
+///
+/// The one way to tell `NULL` from a real value before reading it: ask for a
+/// `NULL` column as an `Int` and it arrives as `0`, indistinguishable from a
+/// stored zero. Only meaningful after `step` has returned `true`, and only
+/// before a `column` call converts the value.
+pub fn Statement::column_type(self : Statement, index~ : Int) -> ColumnType {
+  match @ffi.sqlite3_column_type(self.handle_for_column(), index) {
+    1 => ColumnType::Integer
+    2 => ColumnType::Float
+    3 => ColumnType::Text
+    4 => ColumnType::Blob
+    5 => ColumnType::Null
+    other => abort("sqlite3: unknown storage class \{other}")
+  }
+}
+
+///|
 #callsite(autofill(loc))
 pub fn Statement::step(
   self : Statement,

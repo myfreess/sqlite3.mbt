@@ -263,3 +263,36 @@ test "file-backed database persists after reopen" {
   query.finalize()
   reopened.close()
 }
+
+///|
+test "column_type reports every storage class" {
+  let conn = @sqlite3.Connection::open(":memory:")
+  // Four SQL literals cover four storage classes; the fifth arrives through
+  // bind_null, so this covers the write side of NULL as well.
+  let stmt = conn.prepare("SELECT 1, 2.5, 'text', x'00ff', ?1")
+  stmt.bind_null(index=1)
+  assert_true(stmt.step())
+  assert_eq(stmt.column_type(index=0), @sqlite3.ColumnType::Integer)
+  assert_eq(stmt.column_type(index=1), @sqlite3.ColumnType::Float)
+  assert_eq(stmt.column_type(index=2), @sqlite3.ColumnType::Text)
+  assert_eq(stmt.column_type(index=3), @sqlite3.ColumnType::Blob)
+  assert_eq(stmt.column_type(index=4), @sqlite3.ColumnType::Null)
+  stmt.finalize()
+  conn.close()
+}
+
+///|
+test "a NULL column read as Int is indistinguishable from a stored zero" {
+  let conn = @sqlite3.Connection::open(":memory:")
+  let stmt = conn.prepare("SELECT ?1, 0")
+  stmt.bind_null(index=1)
+  assert_true(stmt.step())
+  assert_eq(stmt.column_type(index=0), @sqlite3.ColumnType::Null)
+  assert_eq(stmt.column_type(index=1), @sqlite3.ColumnType::Integer)
+  let null_as_int : Int = stmt.column(index=0)
+  let zero_as_int : Int = stmt.column(index=1)
+  assert_eq(null_as_int, 0)
+  assert_eq(zero_as_int, 0)
+  stmt.finalize()
+  conn.close()
+}
