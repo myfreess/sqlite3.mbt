@@ -9,6 +9,4 @@ import {
   "moonbitlang/core/test",
 } for "test"
 
-options(
-  backend: [ "native" ],
-)
+supported_targets = "native+wasm"

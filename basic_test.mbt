@@ -217,3 +217,49 @@ test "finalize consumes a statement after an execution error" {
   duplicate.finalize()
   conn.close()
 }
+
+///|
+test "value edge cases round trip" {
+  let conn = @sqlite3.Connection::open(":memory:")
+  let stmt = conn.prepare("SELECT ?1, ?2, ?3")
+  stmt.bind(index=1, 5000000000L)
+  stmt.bind(index=2, "")
+  stmt.bind(index=3, b"")
+  assert_true(stmt.step())
+  let integer : Int64 = stmt.column(index=0)
+  let text : String = stmt.column(index=1)
+  let blob : Bytes = stmt.column(index=2)
+  assert_eq(integer, 5000000000L)
+  assert_eq(text, "")
+  assert_eq(blob, b"")
+  stmt.finalize()
+  conn.close()
+}
+
+///|
+test "file-backed database persists after reopen" {
+  // Keep the reusable fixture under Moon's ignored build directory. Resetting
+  // the table makes reruns independent of backend-specific file cleanup APIs.
+  let filename = "_build/sqlite3-persistence-test.db"
+  let conn = @sqlite3.Connection::open(filename)
+  let reset = conn.prepare("DROP TABLE IF EXISTS persisted")
+  reset.step_once()
+  reset.finalize()
+  let create = conn.prepare("CREATE TABLE persisted(value TEXT)")
+  create.step_once()
+  create.finalize()
+  let insert = conn.prepare("INSERT INTO persisted VALUES (?)")
+  insert.bind(index=1, "persisted 🌙")
+  insert.step_once()
+  insert.finalize()
+  conn.close()
+
+  let reopened = @sqlite3.Connection::open(filename)
+  let query = reopened.prepare("SELECT value FROM persisted")
+  assert_true(query.step())
+  let value : String = query.column(index=0)
+  assert_eq(value, "persisted 🌙")
+  assert_eq(query.step(), false)
+  query.finalize()
+  reopened.close()
+}

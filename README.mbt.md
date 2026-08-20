@@ -2,14 +2,15 @@
 
 `moonbit-community/sqlite3` is a lightweight, low-level SQLite3 binding for MoonBit. It exposes the core SQLite C API workflow for opening connections, preparing statements, binding parameters, stepping through results, and reading column values. It is intended for cases where you want a small and direct embedded database interface rather than an ORM or a full query framework.
 
-This package currently supports only the `native` target and vendors the SQLite amalgamation source directly in the repository. The bundled SQLite version in this repository is `3.49.1`.
+This package supports the `native` and `wasm` targets. The native backend vendors the SQLite amalgamation source directly in the repository; the Wasm backend uses moonrun's `moonbitlang/sqlite` host imports. The bundled native SQLite version is `3.49.1`.
 
 ## Features
 
 - Thin wrapper design with a small API surface that stays close to SQLite's native workflow.
 - Support for prepared statements, positional parameter binding, and row-by-row result reading.
 - Common SQLite result code constants exported for matching and diagnostics.
-- Ships with `sqlite3.c` and `sqlite3.h`, so it does not rely on a system-installed SQLite.
+- The native backend ships with `sqlite3.c` and `sqlite3.h`, so it does not rely on a system-installed SQLite.
+- The Wasm backend keeps SQLite pointers inside the host and represents connections and statements with opaque handles.
 
 ## Installation
 
@@ -72,7 +73,7 @@ test "quick start" {
 
 ### Workflow Summary
 
-1. `Connection::open` opens the database. Pass `":memory:"` for an in-memory database, or a file path such as `"app.db"` for a persistent one.
+1. `Connection::open` opens the database. Pass `":memory:"` for an in-memory database. File paths such as `"app.db"` work when the selected backend and runtime grant filesystem access.
 2. `Connection::prepare` creates a prepared statement.
 3. For statements that do not return rows, call `Statement::step_once()`.
 4. For queries, call `Statement::step()` repeatedly. It returns `true` when a row is available and `false` when the result set is exhausted.
@@ -195,10 +196,11 @@ The current public implementations support the following MoonBit types:
 ## Constraints and Notes
 
 - This is a manual resource management API. Every `Statement` must be explicitly `finalize()`d, and every `Connection` must be explicitly `close()`d. Dropping these values does not release SQLite resources on any backend.
+- The Wasm backend requires a runtime that provides the `moonbitlang/sqlite` imports. Filesystem access and SQL policy are enforced by the host runtime.
 - The current public API does not expose `reset`, so a statement that has already been executed should generally be treated as a one-shot object. If you want to run it again, preparing a new statement is the simplest path.
 - `Connection::prepare` accepts exactly one SQL statement. Empty input, comment-only input, and additional statements after the first one raise `SQLITE_MISUSE`; trailing whitespace, comments, and empty semicolons are allowed.
 - Parameter indexes start at `1`, while column indexes start at `0`. It is easy to mix these up.
-- SQL and `String` values cross the native FFI boundary as UTF-16LE. The native backend intentionally rejects big-endian and unknown-endian targets at compile time. SQLite converts text when the database file uses a different encoding. Use `Bytes` when the value is raw binary data rather than text.
+- SQL and `String` values cross both backend boundaries as UTF-16 code units. Native targets require little-endian UTF-16, while WebAssembly memory is little-endian by definition. SQLite converts text when the database file uses a different encoding. Use `Bytes` when the value is raw binary data rather than text.
 - `Connection::open` uses `sqlite3_open_v2`, so a new database defaults to UTF-8. To select UTF-16LE or UTF-16BE storage, run `PRAGMA encoding` before creating any schema objects; this choice is independent of the native string API.
 - There is currently no public API for binding or decoding `NULL`, and no public column-type inspection API. If you need to distinguish `NULL` precisely, you will need to extend the library.
 - The package is intentionally focused on SQLite basics and does not add transaction wrappers, batch helpers, or named-parameter support.

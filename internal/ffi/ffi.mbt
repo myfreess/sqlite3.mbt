@@ -1,116 +1,134 @@
 ///|
-#external
-pub type Sqlite3
+struct Sqlite3(Sqlite3Handle)
 
 ///|
-#external
-pub type Sqlite3Stmt
+struct Sqlite3Stmt(Sqlite3StmtHandle)
 
 ///|
-#borrow(filename, rescode)
-pub extern "c" fn sqlite3_open_v2(
+pub fn sqlite3_open_v2(
   filename : Bytes,
   flags : Int,
   rescode : Ref[Int],
-) -> Sqlite3 = "moonbit_sqlite3_open_v2"
+) -> Sqlite3 {
+  Sqlite3(sqlite3_open_v2_impl(filename, flags, rescode))
+}
 
 ///|
-pub extern "c" fn sqlite3_close(db : Sqlite3) -> Int = "sqlite3_close"
+pub fn sqlite3_close(database : Sqlite3) -> Int {
+  sqlite3_close_impl(database.0)
+}
 
 ///|
-pub extern "c" fn sqlite3_errmsg(db : Sqlite3) -> String = "moonbit_sqlite3_errmsg"
+pub fn sqlite3_errmsg(database : Sqlite3) -> String {
+  sqlite3_errmsg_impl(database.0)
+}
 
 ///|
-pub extern "c" fn sqlite3_errcode(db : Sqlite3) -> Int = "sqlite3_errcode"
+pub fn sqlite3_errcode(database : Sqlite3) -> Int {
+  sqlite3_errcode_impl(database.0)
+}
 
 ///|
-#borrow(sql)
-pub extern "c" fn sqlite3_exec(db : Sqlite3, sql : Bytes) -> Int = "moonbit_sqlite3_exec"
-
-///|
-/// `tail_offset` is measured in UTF-16 code units, or -1 when SQLite produces
-/// no statement.
-#borrow(sql, tail_offset, rescode)
-pub extern "c" fn sqlite3_prepare16_v2(
-  db : Sqlite3,
+pub fn sqlite3_prepare16_v2(
+  database : Sqlite3,
   sql : String,
   tail_offset : Ref[Int],
   rescode : Ref[Int],
-) -> Sqlite3Stmt = "moonbit_sqlite3_prepare16_v2"
+) -> Sqlite3Stmt {
+  Sqlite3Stmt(sqlite3_prepare16_v2_impl(database.0, sql, tail_offset, rescode))
+}
 
 ///|
-pub extern "c" fn sqlite3_step(stmt : Sqlite3Stmt) -> Int = "sqlite3_step"
+pub fn sqlite3_step(statement : Sqlite3Stmt) -> Int {
+  sqlite3_step_impl(statement.0)
+}
 
 ///|
-pub extern "c" fn sqlite3_reset(stmt : Sqlite3Stmt) -> Int = "sqlite3_reset"
+pub fn sqlite3_finalize(statement : Sqlite3Stmt) -> Int {
+  sqlite3_finalize_impl(statement.0)
+}
 
 ///|
-pub extern "c" fn sqlite3_finalize(stmt : Sqlite3Stmt) -> Int = "sqlite3_finalize"
+pub fn sqlite3_column_count(statement : Sqlite3Stmt) -> Int {
+  sqlite3_column_count_impl(statement.0)
+}
 
 ///|
-pub extern "c" fn sqlite3_column_count(stmt : Sqlite3Stmt) -> Int = "sqlite3_column_count"
-
-// --- Bind functions ---
-
-///|
-pub extern "c" fn sqlite3_bind_int(
-  stmt : Sqlite3Stmt,
-  idx : Int,
+pub fn sqlite3_bind_int(
+  statement : Sqlite3Stmt,
+  index : Int,
   value : Int,
-) -> Int = "sqlite3_bind_int"
+) -> Int {
+  sqlite3_bind_int_impl(statement.0, index, value)
+}
 
 ///|
-pub extern "c" fn sqlite3_bind_int64(
-  stmt : Sqlite3Stmt,
-  idx : Int,
+pub fn sqlite3_bind_int64(
+  statement : Sqlite3Stmt,
+  index : Int,
   value : Int64,
-) -> Int = "sqlite3_bind_int64"
+) -> Int {
+  sqlite3_bind_int64_impl(statement.0, index, value)
+}
 
 ///|
-pub extern "c" fn sqlite3_bind_double(
-  stmt : Sqlite3Stmt,
-  idx : Int,
+pub fn sqlite3_bind_double(
+  statement : Sqlite3Stmt,
+  index : Int,
   value : Double,
-) -> Int = "sqlite3_bind_double"
+) -> Int {
+  sqlite3_bind_double_impl(statement.0, index, value)
+}
 
 ///|
-#borrow(text)
-pub extern "c" fn sqlite3_bind_text(
-  stmt : Sqlite3Stmt,
-  idx : Int,
-  text : String,
-) -> Int = "moonbit_sqlite3_bind_text"
+pub fn sqlite3_bind_text(
+  statement : Sqlite3Stmt,
+  index : Int,
+  value : String,
+) -> Int {
+  sqlite3_bind_text_impl(statement.0, index, value)
+}
 
 ///|
-#borrow(blob)
-pub extern "c" fn sqlite3_bind_blob(
-  stmt : Sqlite3Stmt,
-  idx : Int,
-  blob : Bytes,
-) -> Int = "moonbit_sqlite3_bind_blob"
+pub fn sqlite3_bind_blob(
+  statement : Sqlite3Stmt,
+  index : Int,
+  value : Bytes,
+) -> Int {
+  sqlite3_bind_blob_impl(statement.0, index, value)
+}
 
 ///|
-pub extern "c" fn sqlite3_bind_null(stmt : Sqlite3Stmt, idx : Int) -> Int = "sqlite3_bind_null"
-
-// --- Column functions ---
-
-///|
-pub extern "c" fn sqlite3_column_int(stmt : Sqlite3Stmt, idx : Int) -> Int = "sqlite3_column_int"
+pub fn sqlite3_bind_null(statement : Sqlite3Stmt, index : Int) -> Int {
+  sqlite3_bind_null_impl(statement.0, index)
+}
 
 ///|
-pub extern "c" fn sqlite3_column_int64(stmt : Sqlite3Stmt, idx : Int) -> Int64 = "sqlite3_column_int64"
+pub fn sqlite3_column_int(statement : Sqlite3Stmt, index : Int) -> Int {
+  sqlite3_column_int_impl(statement.0, index)
+}
 
 ///|
-pub extern "c" fn sqlite3_column_double(
-  stmt : Sqlite3Stmt,
-  idx : Int,
-) -> Double = "sqlite3_column_double"
+pub fn sqlite3_column_int64(statement : Sqlite3Stmt, index : Int) -> Int64 {
+  sqlite3_column_int64_impl(statement.0, index)
+}
 
 ///|
-pub extern "c" fn sqlite3_column_text(stmt : Sqlite3Stmt, idx : Int) -> String = "moonbit_sqlite3_column_text"
+pub fn sqlite3_column_double(statement : Sqlite3Stmt, index : Int) -> Double {
+  sqlite3_column_double_impl(statement.0, index)
+}
 
 ///|
-pub extern "c" fn sqlite3_column_blob(stmt : Sqlite3Stmt, idx : Int) -> Bytes = "moonbit_sqlite3_column_blob"
+pub fn sqlite3_column_text(statement : Sqlite3Stmt, index : Int) -> String {
+  sqlite3_column_text_impl(statement.0, index)
+}
 
 ///|
-pub extern "c" fn sqlite3_column_type(stmt : Sqlite3Stmt, idx : Int) -> Int = "sqlite3_column_type"
+pub fn sqlite3_column_blob(statement : Sqlite3Stmt, index : Int) -> Bytes {
+  sqlite3_column_blob_impl(statement.0, index)
+}
+
+///|
+pub fn sqlite3_column_type(statement : Sqlite3Stmt, index : Int) -> Int {
+  sqlite3_column_type_impl(statement.0, index)
+}

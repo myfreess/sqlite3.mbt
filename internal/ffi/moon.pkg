@@ -1,4 +1,10 @@
+supported_targets = "native+wasm"
+
 options(
   "native-stub": [ "stub.c", "sqlite3.c" ],
-  targets: { "ffi.mbt": [ "native" ] },
+  targets: {
+    "ffi.mbt": [ "native", "wasm" ],
+    "ffi_native.mbt": [ "native" ],
+    "ffi_wasm.mbt": [ "wasm" ],
+  },
 )
