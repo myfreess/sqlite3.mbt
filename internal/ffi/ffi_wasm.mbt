@@ -248,8 +248,16 @@ fn sqlite3_bind_text_impl(
   statement : Sqlite3StmtHandle,
   index : Int,
   value : String,
+  value_offset : Int,
+  value_length : Int,
 ) -> Int {
-  sqlite3_bind_text16_import(statement.0, index, value, 0, value.length())
+  sqlite3_bind_text16_import(
+    statement.0,
+    index,
+    value,
+    value_offset,
+    value_length,
+  )
 }
 
 ///|
@@ -257,18 +265,21 @@ fn sqlite3_bind_blob_impl(
   statement : Sqlite3StmtHandle,
   index : Int,
   value : Bytes,
+  value_offset : Int,
+  value_length : Int,
 ) -> Int {
-  sqlite3_bind_blob_import(statement.0, index, value, 0, value.length())
+  sqlite3_bind_blob_import(
+    statement.0,
+    index,
+    value,
+    value_offset,
+    value_length,
+  )
 }
 
 ///|
 fn sqlite3_bind_null_impl(statement : Sqlite3StmtHandle, index : Int) -> Int {
   sqlite3_bind_null_import(statement.0, index)
-}
-
-///|
-fn sqlite3_column_int_impl(statement : Sqlite3StmtHandle, index : Int) -> Int {
-  sqlite3_column_int64_import(statement.0, index).to_int()
 }
 
 ///|

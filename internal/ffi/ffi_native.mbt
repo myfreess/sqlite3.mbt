@@ -75,6 +75,8 @@ extern "c" fn sqlite3_bind_text_impl(
   stmt : Sqlite3StmtHandle,
   idx : Int,
   text : String,
+  text_offset : Int,
+  text_length : Int,
 ) -> Int = "moonbit_sqlite3_bind_text"
 
 ///|
@@ -83,6 +85,8 @@ extern "c" fn sqlite3_bind_blob_impl(
   stmt : Sqlite3StmtHandle,
   idx : Int,
   blob : Bytes,
+  blob_offset : Int,
+  blob_length : Int,
 ) -> Int = "moonbit_sqlite3_bind_blob"
 
 ///|
@@ -92,12 +96,6 @@ extern "c" fn sqlite3_bind_null_impl(
 ) -> Int = "sqlite3_bind_null"
 
 // --- Column functions ---
-
-///|
-extern "c" fn sqlite3_column_int_impl(
-  stmt : Sqlite3StmtHandle,
-  idx : Int,
-) -> Int = "sqlite3_column_int"
 
 ///|
 extern "c" fn sqlite3_column_int64_impl(

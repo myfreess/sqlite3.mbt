@@ -9,4 +9,9 @@ import {
   "moonbitlang/core/test",
 } for "test"
 
+// Keep derived traits as traits only; explicit extensions would add method-form
+// APIs such as `ErrorCode::equal` to the generated package interface.
+
+warnings = "-79"
+
 supported_targets = "native+wasm"

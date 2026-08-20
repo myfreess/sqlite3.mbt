@@ -39,8 +39,8 @@ fn select_company(conn : @sqlite3.Connection) -> Unit raise {
     ),
   )
   if stmt.step() {
-    let column0 : Int = stmt.column(index=0)
-    assert_eq(column0, 1)
+    let column0 : Int64 = stmt.column(index=0)
+    assert_eq(column0, 1L)
     let column1 : String = stmt.column(index=1)
     assert_eq(column1, "Paul")
     let column3 : String = stmt.column(index=3)
@@ -295,7 +295,7 @@ test "public misuse reports structured errors" {
   let conn = @sqlite3.Connection::open(":memory:")
   let stmt = conn.prepare("SELECT 1")
   let before_step = @test.expect_error(() => {
-    let _ : Int = stmt.column(index=0)
+    let _ : Int64 = stmt.column(index=0)
   })
   match before_step {
     @sqlite3.SqliteError(code~, extended~, msg~) => {
@@ -305,11 +305,11 @@ test "public misuse reports structured errors" {
     }
   }
   assert_true(stmt.step())
-  let value : Int = stmt.column(index=0)
-  assert_eq(value, 1)
+  let value : Int64 = stmt.column(index=0)
+  assert_eq(value, 1L)
   assert_eq(stmt.step(), false)
   let after_done = @test.expect_error(() => {
-    let _ : Int = stmt.column(index=0)
+    let _ : Int64 = stmt.column(index=0)
   })
   match after_done {
     @sqlite3.SqliteError(code~, extended~, msg~) => {
@@ -320,7 +320,7 @@ test "public misuse reports structured errors" {
   }
   stmt.finalize()
   let after_finalize = @test.expect_error(() => {
-    let _ : Int = stmt.column(index=0)
+    let _ : Int64 = stmt.column(index=0)
   })
   match after_finalize {
     @sqlite3.SqliteError(code~, extended~, msg~) => {
@@ -338,6 +338,23 @@ test "public misuse reports structured errors" {
       assert_true(msg.length() > 0)
     }
   }
+}
+
+///|
+test "step after completion reruns the statement with existing bindings" {
+  let conn = @sqlite3.Connection::open(":memory:")
+  let stmt = conn.prepare("SELECT ?1")
+  stmt.bind(index=1, 42L)
+  assert_true(stmt.step())
+  let first : Int64 = stmt.column(index=0)
+  assert_eq(first, 42L)
+  assert_eq(stmt.step(), false)
+  assert_true(stmt.step())
+  let second : Int64 = stmt.column(index=0)
+  assert_eq(second, 42L)
+  assert_eq(stmt.step(), false)
+  stmt.finalize()
+  conn.close()
 }
 
 ///|

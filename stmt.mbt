@@ -18,9 +18,18 @@ fn Statement::get_handle(
 ///|
 fn Statement::handle_for_column(
   self : Statement,
+  index : Int,
 ) -> @ffi.Sqlite3Stmt raise SqliteError {
   match (self.handle, self.has_row) {
-    (Some(handle), true) => handle
+    (Some(handle), true) => {
+      let column_count = @ffi.sqlite3_column_count(handle)
+      if index < 0 || index >= column_count {
+        raise sqlite_misuse(
+          "sqlite3: column index \{index} is outside 0..<\{column_count}",
+        )
+      }
+      handle
+    }
     (None, _) => raise sqlite_misuse("sqlite3: statement is finalized")
     _ => raise sqlite_misuse("sqlite3: statement has no current row")
   }

@@ -29,7 +29,7 @@ pub impl Bind for Int64 with fn bind(stmt, param_index, value) {
 
 ///|
 pub impl Bind for Bytes with fn bind(stmt, param_index, value) {
-  let rescode = @ffi.sqlite3_bind_blob(stmt.get_handle(), param_index, value)
+  let rescode = @ffi.sqlite3_bind_blob(stmt.get_handle(), param_index, value[:])
   if rescode != SQLITE_OK {
     raise stmt.error(rescode)
   }
@@ -37,6 +37,22 @@ pub impl Bind for Bytes with fn bind(stmt, param_index, value) {
 
 ///|
 pub impl Bind for String with fn bind(stmt, param_index, value) {
+  let rescode = @ffi.sqlite3_bind_text(stmt.get_handle(), param_index, value[:])
+  if rescode != SQLITE_OK {
+    raise stmt.error(rescode)
+  }
+}
+
+///|
+pub impl Bind for BytesView with fn bind(stmt, param_index, value) {
+  let rescode = @ffi.sqlite3_bind_blob(stmt.get_handle(), param_index, value)
+  if rescode != SQLITE_OK {
+    raise stmt.error(rescode)
+  }
+}
+
+///|
+pub impl Bind for StringView with fn bind(stmt, param_index, value) {
   let rescode = @ffi.sqlite3_bind_text(stmt.get_handle(), param_index, value)
   if rescode != SQLITE_OK {
     raise stmt.error(rescode)

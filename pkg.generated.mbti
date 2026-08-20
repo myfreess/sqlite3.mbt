@@ -135,6 +135,16 @@ pub fn[T : Column] Statement::column(Self, index~ : Int) -> T raise SqliteError
 pub fn Statement::finalize(Self) -> Unit raise SqliteError
 pub fn Statement::step(Self) -> Bool raise SqliteError
 
+pub(all) enum Value {
+  Null
+  Integer(Int64)
+  Real(Double)
+  Text(String)
+  Blob(Bytes)
+} derive(Eq, @debug.Debug)
+pub impl Bind for Value
+pub impl Column for Value
+
 // Type aliases
 
 // Traits
@@ -144,9 +154,10 @@ pub impl Bind for Int64
 pub impl Bind for Double
 pub impl Bind for String
 pub impl Bind for Bytes
+pub impl Bind for BytesView
+pub impl Bind for StringView
 
 trait Column
-pub impl Column for Int
 pub impl Column for Int64
 pub impl Column for Double
 pub impl Column for String

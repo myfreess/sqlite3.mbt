@@ -58,10 +58,10 @@ test "quick start" {
     ),
   )
   assert_true(query.step())
-  let id : Int = query.column(index=0)
+  let id : Int64 = query.column(index=0)
   let name : String = query.column(index=1)
   let score : Double = query.column(index=2)
-  assert_eq(id, 1)
+  assert_eq(id, 1L)
   assert_eq(name, "alice")
   assert_eq(score.to_int(), 98)
   assert_eq(query.step(), false)
@@ -128,15 +128,15 @@ test "blob round trip" {
   )
 
   assert_true(query.step())
-  let first_id : Int = query.column(index=0)
+  let first_id : Int64 = query.column(index=0)
   let first_payload : Bytes = query.column(index=1)
-  assert_eq(first_id, 1)
+  assert_eq(first_id, 1L)
   assert_eq(first_payload, b"abc")
 
   assert_true(query.step())
-  let second_id : Int = query.column(index=0)
+  let second_id : Int64 = query.column(index=0)
   let second_payload : Bytes = query.column(index=1)
-  assert_eq(second_id, 2)
+  assert_eq(second_id, 2L)
   assert_eq(second_payload, b"xyz")
 
   assert_eq(query.step(), false)
@@ -190,22 +190,48 @@ The current public implementations support the following MoonBit types:
 
 | MoonBit type | Bound as SQLite | Read from SQLite as |
 | --- | --- | --- |
-| `Int` | `INTEGER` | `Int` |
+| `Int` | `INTEGER` | — |
 | `Int64` | `INTEGER` | `Int64` |
 | `Double` | `REAL` | `Double` |
 | `String` | `TEXT` | `String` |
+| `StringView` | `TEXT` | — |
 | `Bytes` | `BLOB` | `Bytes` |
+| `BytesView` | `BLOB` | — |
+| `Value` | Exact SQLite storage class, including `NULL` | `Value` |
+
+Use `Value` when a value may be `NULL` or its SQLite storage class is not
+known statically. It uses the existing `bind` and `column` methods, so no
+separate dynamic statement interface is required:
+
+```mbt check
+///|
+test "dynamic value" {
+  let conn = @sqlite3.Connection::open(":memory:")
+  let stmt = conn.prepare("SELECT ?")
+  stmt.bind(index=1, @sqlite3.Value::Null)
+  assert_true(stmt.step())
+  let value : @sqlite3.Value = stmt.column(index=0)
+  assert_eq(value, @sqlite3.Value::Null)
+  stmt.finalize()
+  conn.close()
+}
+```
+
+`Value::Integer` and typed integer columns use `Int64`, preserving SQLite's
+full integer range. Convert to `Int` explicitly only when the application's
+domain guarantees that the value fits. Request `Value` when distinguishing
+`NULL` is significant.
 
 ## Constraints and Notes
 
 - This is a manual resource management API. Every `Statement` must be explicitly `finalize()`d, and every `Connection` must be explicitly `close()`d. Dropping these values does not release SQLite resources on any backend.
 - The Wasm backend requires a runtime that provides the `moonbitlang/sqlite` imports. Filesystem access and SQL policy are enforced by the host runtime.
-- The current public API does not expose `reset`, so a statement that has already been executed should generally be treated as a one-shot object. If you want to run it again, preparing a new statement is the simplest path.
+- Both bundled backends use SQLite's automatic reset behavior: calling `step()` again after it returns `false` reruns the statement with its existing bindings. The public API does not expose `reset`, so prepare a new statement when you need to change bindings between executions.
 - `Connection::prepare` accepts exactly one SQL statement. Empty input, comment-only input, and additional statements after the first one raise an error with `code=Misuse`; trailing whitespace, comments, and empty semicolons are allowed.
 - Parameter indexes start at `1`, while column indexes start at `0`. It is easy to mix these up.
 - SQL and `String` values cross both backend boundaries as UTF-16 code units. Native targets require little-endian UTF-16, while WebAssembly memory is little-endian by definition. SQLite converts text when the database file uses a different encoding. Use `Bytes` when the value is raw binary data rather than text.
 - `Connection::open` uses `sqlite3_open_v2`, so a new database defaults to UTF-8. To select UTF-16LE or UTF-16BE storage, run `PRAGMA encoding` before creating any schema objects; this choice is independent of the native string API.
-- There is currently no public API for binding or decoding `NULL`, and no public column-type inspection API. If you need to distinguish `NULL` precisely, you will need to extend the library.
+- The package does not expose declared column types or result-column names. `Value` reports the runtime storage class of a value in the current row.
 - The package is intentionally focused on SQLite basics and does not add transaction wrappers, batch helpers, or named-parameter support.
 
 ## Error Codes

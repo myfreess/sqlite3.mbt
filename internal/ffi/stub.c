@@ -88,14 +88,16 @@ int32_t
 moonbit_sqlite3_bind_text(
   sqlite3_stmt *stmt,
   int32_t idx,
-  moonbit_string_t text
+  moonbit_string_t text,
+  int32_t text_offset,
+  int32_t text_length
 ) {
-  sqlite3_uint64 byte_len =
-    (sqlite3_uint64)Moonbit_array_length(text) * sizeof(uint16_t);
+  const uint16_t *start = (const uint16_t *)text + text_offset;
+  sqlite3_uint64 byte_len = (sqlite3_uint64)text_length * sizeof(uint16_t);
   return (int32_t)sqlite3_bind_text64(
     stmt,
     idx,
-    (const char *)text,
+    (const char *)start,
     byte_len,
     SQLITE_TRANSIENT,
     SQLITE_UTF16LE
@@ -107,11 +109,13 @@ int32_t
 moonbit_sqlite3_bind_blob(
   sqlite3_stmt *stmt,
   int32_t idx,
-  moonbit_bytes_t blob
+  moonbit_bytes_t blob,
+  int32_t blob_offset,
+  int32_t blob_length
 ) {
-  int32_t len = Moonbit_array_length(blob);
+  const uint8_t *start = (const uint8_t *)blob + blob_offset;
   return (int32_t)sqlite3_bind_blob(
-    stmt, idx, (const void *)blob, len, SQLITE_TRANSIENT
+    stmt, idx, (const void *)start, blob_length, SQLITE_TRANSIENT
   );
 }
 
@@ -119,7 +123,10 @@ moonbit_sqlite3_bind_blob(
 
 MOONBIT_FFI_EXPORT
 moonbit_string_t
-moonbit_sqlite3_column_text(sqlite3_stmt *stmt, int32_t idx) {
+moonbit_sqlite3_column_text(
+  sqlite3_stmt *stmt,
+  int32_t idx
+) {
   const void *text = sqlite3_column_text16(stmt, idx);
   int32_t byte_len = 0;
   if (text) {
@@ -136,7 +143,10 @@ moonbit_sqlite3_column_text(sqlite3_stmt *stmt, int32_t idx) {
 
 MOONBIT_FFI_EXPORT
 moonbit_bytes_t
-moonbit_sqlite3_column_blob(sqlite3_stmt *stmt, int32_t idx) {
+moonbit_sqlite3_column_blob(
+  sqlite3_stmt *stmt,
+  int32_t idx
+) {
   const void *blob = sqlite3_column_blob(stmt, idx);
   int32_t len = 0;
   if (blob) {

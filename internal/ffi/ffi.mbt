@@ -89,28 +89,35 @@ pub fn sqlite3_bind_double(
 pub fn sqlite3_bind_text(
   statement : Sqlite3Stmt,
   index : Int,
-  value : String,
+  value : StringView,
 ) -> Int {
-  sqlite3_bind_text_impl(statement.0, index, value)
+  sqlite3_bind_text_impl(
+    statement.0,
+    index,
+    value.data(),
+    value.start_offset(),
+    value.length(),
+  )
 }
 
 ///|
 pub fn sqlite3_bind_blob(
   statement : Sqlite3Stmt,
   index : Int,
-  value : Bytes,
+  value : BytesView,
 ) -> Int {
-  sqlite3_bind_blob_impl(statement.0, index, value)
+  sqlite3_bind_blob_impl(
+    statement.0,
+    index,
+    value.data(),
+    value.start_offset(),
+    value.length(),
+  )
 }
 
 ///|
 pub fn sqlite3_bind_null(statement : Sqlite3Stmt, index : Int) -> Int {
   sqlite3_bind_null_impl(statement.0, index)
-}
-
-///|
-pub fn sqlite3_column_int(statement : Sqlite3Stmt, index : Int) -> Int {
-  sqlite3_column_int_impl(statement.0, index)
 }
 
 ///|
