@@ -217,3 +217,21 @@ test "finalize consumes a statement after an execution error" {
   duplicate.finalize()
   conn.close()
 }
+
+///|
+test "value edge cases round trip" {
+  let conn = @sqlite3.Connection::open(":memory:")
+  let stmt = conn.prepare("SELECT ?1, ?2, ?3")
+  stmt.bind(index=1, 5000000000L)
+  stmt.bind(index=2, "")
+  stmt.bind(index=3, b"")
+  assert_true(stmt.step())
+  let integer : Int64 = stmt.column(index=0)
+  let text : String = stmt.column(index=1)
+  let blob : Bytes = stmt.column(index=2)
+  assert_eq(integer, 5000000000L)
+  assert_eq(text, "")
+  assert_eq(blob, b"")
+  stmt.finalize()
+  conn.close()
+}

@@ -1,0 +1,326 @@
+///|
+fn sqlite3_null_handle_import() -> UInt64 = "moonbitlang/sqlite" "sqlite3_null_handle"
+
+///|
+#unsafe_skip_stub_check
+#borrow(filename, database)
+fn sqlite3_open_v2_import(
+  filename : Bytes,
+  filename_length : Int,
+  database : Ref[UInt64],
+  flags : Int,
+  vfs : UInt64,
+) -> Int = "moonbitlang/sqlite" "sqlite3_open_v2"
+
+///|
+fn sqlite3_errmsg16_length_import(database : UInt64) -> Int = "moonbitlang/sqlite" "sqlite3_errmsg16_length"
+
+///|
+#unsafe_skip_stub_check
+#borrow(output)
+fn sqlite3_errmsg16_import(
+  database : UInt64,
+  output : String,
+  capacity : Int,
+) -> Int = "moonbitlang/sqlite" "sqlite3_errmsg16"
+
+///|
+fn sqlite3_errcode_import(database : UInt64) -> Int = "moonbitlang/sqlite" "sqlite3_errcode"
+
+///|
+fn sqlite3_close_import(database : UInt64) -> Int = "moonbitlang/sqlite" "sqlite3_close"
+
+///|
+#unsafe_skip_stub_check
+#borrow(sql, statement, tail)
+fn sqlite3_prepare16_v2_import(
+  database : UInt64,
+  sql : String,
+  sql_offset : Int,
+  sql_length : Int,
+  statement : Ref[UInt64],
+  tail : Ref[Int],
+) -> Int = "moonbitlang/sqlite" "sqlite3_prepare16_v2"
+
+///|
+fn sqlite3_bind_null_import(statement : UInt64, index : Int) -> Int = "moonbitlang/sqlite" "sqlite3_bind_null"
+
+///|
+fn sqlite3_bind_int64_import(
+  statement : UInt64,
+  index : Int,
+  value : Int64,
+) -> Int = "moonbitlang/sqlite" "sqlite3_bind_int64"
+
+///|
+fn sqlite3_bind_double_import(
+  statement : UInt64,
+  index : Int,
+  value : Double,
+) -> Int = "moonbitlang/sqlite" "sqlite3_bind_double"
+
+///|
+#unsafe_skip_stub_check
+#borrow(value)
+fn sqlite3_bind_text16_import(
+  statement : UInt64,
+  index : Int,
+  value : String,
+  value_offset : Int,
+  value_length : Int,
+) -> Int = "moonbitlang/sqlite" "sqlite3_bind_text16"
+
+///|
+#unsafe_skip_stub_check
+#borrow(value)
+fn sqlite3_bind_blob_import(
+  statement : UInt64,
+  index : Int,
+  value : Bytes,
+  value_offset : Int,
+  value_length : Int,
+) -> Int = "moonbitlang/sqlite" "sqlite3_bind_blob"
+
+///|
+fn sqlite3_step_import(statement : UInt64) -> Int = "moonbitlang/sqlite" "sqlite3_step"
+
+///|
+fn sqlite3_finalize_import(statement : UInt64) -> Int = "moonbitlang/sqlite" "sqlite3_finalize"
+
+///|
+fn sqlite3_column_count_import(statement : UInt64) -> Int = "moonbitlang/sqlite" "sqlite3_column_count"
+
+///|
+fn sqlite3_column_type_import(statement : UInt64, column : Int) -> Int = "moonbitlang/sqlite" "sqlite3_column_type"
+
+///|
+fn sqlite3_column_int64_import(statement : UInt64, column : Int) -> Int64 = "moonbitlang/sqlite" "sqlite3_column_int64"
+
+///|
+fn sqlite3_column_double_import(statement : UInt64, column : Int) -> Double = "moonbitlang/sqlite" "sqlite3_column_double"
+
+///|
+fn sqlite3_column_text16_length_import(statement : UInt64, column : Int) -> Int = "moonbitlang/sqlite" "sqlite3_column_text16_length"
+
+///|
+#unsafe_skip_stub_check
+#borrow(output)
+fn sqlite3_column_text16_import(
+  statement : UInt64,
+  column : Int,
+  output : String,
+  capacity : Int,
+) -> Int = "moonbitlang/sqlite" "sqlite3_column_text16"
+
+///|
+fn sqlite3_column_blob_length_import(statement : UInt64, column : Int) -> Int = "moonbitlang/sqlite" "sqlite3_column_blob_length"
+
+///|
+#unsafe_skip_stub_check
+#borrow(output)
+fn sqlite3_column_blob_import(
+  statement : UInt64,
+  column : Int,
+  output : FixedArray[Byte],
+  capacity : Int,
+) -> Int = "moonbitlang/sqlite" "sqlite3_column_blob"
+
+///|
+priv struct Sqlite3Handle(UInt64)
+
+///|
+priv struct Sqlite3StmtHandle(UInt64)
+
+///|
+fn sqlite3_open_v2_impl(
+  filename : Bytes,
+  flags : Int,
+  rescode : Ref[Int],
+) -> Sqlite3Handle {
+  let null_handle = sqlite3_null_handle_import()
+  let database = Ref(null_handle)
+  rescode.val = sqlite3_open_v2_import(
+    filename,
+    filename.length(),
+    database,
+    flags,
+    null_handle,
+  )
+  Sqlite3Handle(database.val)
+}
+
+///|
+fn sqlite3_close_impl(database : Sqlite3Handle) -> Int {
+  sqlite3_close_import(database.0)
+}
+
+///|
+fn sqlite3_errmsg_impl(database : Sqlite3Handle) -> String {
+  let length = sqlite3_errmsg16_length_import(database.0)
+  let output = String::make(length, '\u0000')
+  let copied = sqlite3_errmsg16_import(database.0, output, output.length())
+  if copied != length {
+    abort("sqlite3: error message changed while being copied")
+  }
+  output
+}
+
+///|
+fn sqlite3_errcode_impl(database : Sqlite3Handle) -> Int {
+  sqlite3_errcode_import(database.0)
+}
+
+///|
+fn sqlite3_prepare16_v2_impl(
+  database : Sqlite3Handle,
+  sql : String,
+  tail_offset : Ref[Int],
+  rescode : Ref[Int],
+) -> Sqlite3StmtHandle {
+  let null_handle = sqlite3_null_handle_import()
+  let statement = Ref(null_handle)
+  let tail = Ref(0)
+  rescode.val = sqlite3_prepare16_v2_import(
+    database.0,
+    sql,
+    0,
+    sql.length(),
+    statement,
+    tail,
+  )
+  if rescode.val == 0 && statement.val != null_handle {
+    tail_offset.val = tail.val
+  } else {
+    tail_offset.val = -1
+  }
+  Sqlite3StmtHandle(statement.val)
+}
+
+///|
+fn sqlite3_step_impl(statement : Sqlite3StmtHandle) -> Int {
+  sqlite3_step_import(statement.0)
+}
+
+///|
+fn sqlite3_finalize_impl(statement : Sqlite3StmtHandle) -> Int {
+  sqlite3_finalize_import(statement.0)
+}
+
+///|
+fn sqlite3_column_count_impl(statement : Sqlite3StmtHandle) -> Int {
+  sqlite3_column_count_import(statement.0)
+}
+
+///|
+fn sqlite3_bind_int_impl(
+  statement : Sqlite3StmtHandle,
+  index : Int,
+  value : Int,
+) -> Int {
+  sqlite3_bind_int64_import(statement.0, index, value.to_int64())
+}
+
+///|
+fn sqlite3_bind_int64_impl(
+  statement : Sqlite3StmtHandle,
+  index : Int,
+  value : Int64,
+) -> Int {
+  sqlite3_bind_int64_import(statement.0, index, value)
+}
+
+///|
+fn sqlite3_bind_double_impl(
+  statement : Sqlite3StmtHandle,
+  index : Int,
+  value : Double,
+) -> Int {
+  sqlite3_bind_double_import(statement.0, index, value)
+}
+
+///|
+fn sqlite3_bind_text_impl(
+  statement : Sqlite3StmtHandle,
+  index : Int,
+  value : String,
+) -> Int {
+  sqlite3_bind_text16_import(statement.0, index, value, 0, value.length())
+}
+
+///|
+fn sqlite3_bind_blob_impl(
+  statement : Sqlite3StmtHandle,
+  index : Int,
+  value : Bytes,
+) -> Int {
+  sqlite3_bind_blob_import(statement.0, index, value, 0, value.length())
+}
+
+///|
+fn sqlite3_bind_null_impl(statement : Sqlite3StmtHandle, index : Int) -> Int {
+  sqlite3_bind_null_import(statement.0, index)
+}
+
+///|
+fn sqlite3_column_int_impl(statement : Sqlite3StmtHandle, index : Int) -> Int {
+  sqlite3_column_int64_import(statement.0, index).to_int()
+}
+
+///|
+fn sqlite3_column_int64_impl(
+  statement : Sqlite3StmtHandle,
+  index : Int,
+) -> Int64 {
+  sqlite3_column_int64_import(statement.0, index)
+}
+
+///|
+fn sqlite3_column_double_impl(
+  statement : Sqlite3StmtHandle,
+  index : Int,
+) -> Double {
+  sqlite3_column_double_import(statement.0, index)
+}
+
+///|
+fn sqlite3_column_text_impl(
+  statement : Sqlite3StmtHandle,
+  index : Int,
+) -> String {
+  let length = sqlite3_column_text16_length_import(statement.0, index)
+  let output = String::make(length, '\u0000')
+  let copied = sqlite3_column_text16_import(
+    statement.0,
+    index,
+    output,
+    output.length(),
+  )
+  if copied != length {
+    abort("sqlite3: text column changed while being copied")
+  }
+  output
+}
+
+///|
+fn sqlite3_column_blob_impl(
+  statement : Sqlite3StmtHandle,
+  index : Int,
+) -> Bytes {
+  let length = sqlite3_column_blob_length_import(statement.0, index)
+  let output : FixedArray[Byte] = FixedArray::make(length, 0)
+  let copied = sqlite3_column_blob_import(
+    statement.0,
+    index,
+    output,
+    output.length(),
+  )
+  if copied != length {
+    abort("sqlite3: blob column changed while being copied")
+  }
+  Bytes::from_array(output)
+}
+
+///|
+fn sqlite3_column_type_impl(statement : Sqlite3StmtHandle, index : Int) -> Int {
+  sqlite3_column_type_import(statement.0, index)
+}
