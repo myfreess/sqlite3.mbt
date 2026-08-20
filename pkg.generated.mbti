@@ -6,105 +6,144 @@ import {
 }
 
 // Values
-pub const SQLITE_ABORT : Int = 4
-
-pub const SQLITE_AUTH : Int = 23
-
-pub const SQLITE_BLOB : Int = 2
-
-pub const SQLITE_BUSY : Int = 5
-
-pub const SQLITE_CANTOPEN : Int = 14
-
-pub const SQLITE_CONSTRAINT : Int = 19
-
-pub const SQLITE_CORRUPT : Int = 11
-
-pub const SQLITE_DONE : Int = 101
-
-pub const SQLITE_EMPTY : Int = 16
-
-pub const SQLITE_ERROR : Int = 1
-
-pub const SQLITE_ERROR_MISSING_COLLSEQ : Int = 257
-
-pub const SQLITE_FLOAT : Int = 2
-
-pub const SQLITE_FORMAT : Int = 24
-
-pub const SQLITE_FULL : Int = 13
-
-pub const SQLITE_INTEGER : Int = 1
-
-pub const SQLITE_INTERNAL : Int = 2
-
-pub const SQLITE_INTERRUPT : Int = 9
-
-pub const SQLITE_IOERR : Int = 10
-
-pub const SQLITE_LOCKED : Int = 6
-
-pub const SQLITE_MISMATCH : Int = 20
-
-pub const SQLITE_MISUSE : Int = 21
-
-pub const SQLITE_NOLFS : Int = 22
-
-pub const SQLITE_NOMEM : Int = 7
-
-pub const SQLITE_NOTADB : Int = 26
-
-pub const SQLITE_NOTFOUND : Int = 12
-
-pub const SQLITE_NOTICE : Int = 27
-
-pub const SQLITE_OK : Int = 0
-
-pub const SQLITE_OK_LOAD_PERMANENTLY : Int = 256
-
-pub const SQLITE_PERM : Int = 3
-
-pub const SQLITE_PROTOCOL : Int = 15
-
-pub const SQLITE_RANGE : Int = 25
-
-pub const SQLITE_READONLY : Int = 8
-
-pub const SQLITE_ROW : Int = 100
-
-pub const SQLITE_SCHEMA : Int = 17
-
-pub const SQLITE_TOOBIG : Int = 18
-
-pub const SQLITE_WARNING : Int = 28
 
 // Errors
 pub suberror SqliteError {
-  SqliteError((Int, SourceLoc))
-} derive(@debug.Debug)
-#deprecated
-pub fn SqliteError::to_repr(Self) -> @debug.Repr
+  SqliteError(code~ : ErrorCode, extended~ : ExtendedCode?, msg~ : String)
+} derive(Eq, @debug.Debug)
 
 // Types and methods
 type Connection
-#callsite(autofill(loc))
-pub fn Connection::close(Self, loc~ : SourceLoc) -> Unit raise SqliteError
-pub fn Connection::get_errmsg(Self) -> String
-#callsite(autofill(loc))
-pub fn Connection::open(String, loc~ : SourceLoc) -> Self raise SqliteError
-#callsite(autofill(loc))
-pub fn Connection::prepare(Self, String, loc~ : SourceLoc) -> Statement raise SqliteError
+pub fn Connection::close(Self) -> Unit raise SqliteError
+pub fn Connection::open(String) -> Self raise SqliteError
+pub fn Connection::prepare(Self, String) -> Statement raise SqliteError
+
+pub(all) enum ErrorCode {
+  Error
+  Internal
+  Perm
+  Abort
+  Busy
+  Locked
+  NoMem
+  ReadOnly
+  Interrupt
+  IoErr
+  Corrupt
+  NotFound
+  Full
+  CantOpen
+  Protocol
+  Empty
+  Schema
+  TooBig
+  Constraint
+  Mismatch
+  Misuse
+  NoLfs
+  Auth
+  Format
+  Range
+  NotADb
+  Notice
+  Warning
+  Unknown(Int)
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ExtendedCode {
+  ErrorMissingCollSeq
+  ErrorRetry
+  ErrorSnapshot
+  IoErrRead
+  IoErrShortRead
+  IoErrWrite
+  IoErrFsync
+  IoErrDirFsync
+  IoErrTruncate
+  IoErrFstat
+  IoErrUnlock
+  IoErrReadLock
+  IoErrDelete
+  IoErrBlocked
+  IoErrNoMem
+  IoErrAccess
+  IoErrCheckReservedLock
+  IoErrLock
+  IoErrClose
+  IoErrDirClose
+  IoErrShmOpen
+  IoErrShmSize
+  IoErrShmLock
+  IoErrShmMap
+  IoErrSeek
+  IoErrDeleteNoEntry
+  IoErrMmap
+  IoErrGetTempPath
+  IoErrConvertPath
+  IoErrVNode
+  IoErrAuth
+  IoErrBeginAtomic
+  IoErrCommitAtomic
+  IoErrRollbackAtomic
+  IoErrData
+  IoErrCorruptFs
+  IoErrInPage
+  LockedSharedCache
+  LockedVTab
+  BusyRecovery
+  BusySnapshot
+  BusyTimeout
+  CantOpenNoTempDir
+  CantOpenIsDir
+  CantOpenFullPath
+  CantOpenConvertPath
+  CantOpenDirtyWal
+  CantOpenSymlink
+  CorruptVTab
+  CorruptSequence
+  CorruptIndex
+  ReadOnlyRecovery
+  ReadOnlyCantLock
+  ReadOnlyRollback
+  ReadOnlyDbMoved
+  ReadOnlyCantInit
+  ReadOnlyDirectory
+  AbortRollback
+  ConstraintCheck
+  ConstraintCommitHook
+  ConstraintForeignKey
+  ConstraintFunction
+  ConstraintNotNull
+  ConstraintPrimaryKey
+  ConstraintTrigger
+  ConstraintUnique
+  ConstraintVTab
+  ConstraintRowId
+  ConstraintPinned
+  ConstraintDatatype
+  NoticeRecoverWal
+  NoticeRecoverRollback
+  NoticeRbu
+  WarningAutoIndex
+  AuthUser
+  Unknown(Int)
+} derive(Eq, @debug.Debug)
 
 type Statement
-#callsite(autofill(loc))
-pub fn[T : Bind] Statement::bind(Self, index~ : Int, T, loc~ : SourceLoc) -> Unit raise SqliteError
-pub fn[T : Column] Statement::column(Self, index~ : Int) -> T
-#callsite(autofill(loc))
-pub fn Statement::finalize(Self, loc~ : SourceLoc) -> Unit raise SqliteError
-#callsite(autofill(loc))
-pub fn Statement::step(Self, loc~ : SourceLoc) -> Bool raise SqliteError
-#callsite(autofill(loc))
-pub fn Statement::step_once(Self, loc~ : SourceLoc) -> Unit raise SqliteError
+pub fn[T : Bind] Statement::bind(Self, index~ : Int, T) -> Unit raise SqliteError
+pub fn[T : Column] Statement::column(Self, index~ : Int) -> T raise SqliteError
+pub fn Statement::finalize(Self) -> Unit raise SqliteError
+pub fn Statement::step(Self) -> Bool raise SqliteError
+
+pub(all) enum Value {
+  Null
+  Integer(Int64)
+  Real(Double)
+  Text(String)
+  Blob(Bytes)
+} derive(Eq, @debug.Debug)
+pub impl Bind for Value
+pub impl Column for Value
 
 // Type aliases
 
@@ -115,9 +154,10 @@ pub impl Bind for Int64
 pub impl Bind for Double
 pub impl Bind for String
 pub impl Bind for Bytes
+pub impl Bind for BytesView
+pub impl Bind for StringView
 
 trait Column
-pub impl Column for Int
 pub impl Column for Int64
 pub impl Column for Double
 pub impl Column for String

@@ -18,9 +18,10 @@ that accidentally omitted `close()` or `finalize()` could appear to work on
 native while leaking on WebAssembly. Requiring explicit release gives every
 backend the same contract.
 
-The shared `Ref[Option[handle]]` state is also intentional. It makes copies of
-a `Connection` or `Statement` observe the same closed or finalized state and
-prevents a raw handle from being used again after explicit release.
+Connections keep their optional handle in shared `Ref` state, while statements
+use a mutable struct that also records current-row validity and retains the
+originating connection for error-message capture. Copies therefore observe the
+same closed or finalized state and cannot reuse a released raw handle.
 
 ## Native FFI adapters
 
@@ -28,6 +29,15 @@ Functions whose MoonBit native ABI already matches SQLite bind directly to the
 corresponding `sqlite3_*` symbol. The C stub is reserved for actual adaptation:
 reshaping open and prepare results, supplying omitted callback arguments, and
 copying strings or blobs across the ownership boundary.
+
+SQLite reports result-column conversion allocation failures only through the
+connection-wide error state. The text and BLOB adapters compare that state
+immediately before and after conversion, so an older `SQLITE_NOMEM` from
+another statement is not assigned to a legitimate empty or `NULL` value. A
+newly observed `SQLITE_NOMEM` invalidates the statement's current row. If the
+connection already reports `SQLITE_NOMEM`, SQLite provides no public API that
+can distinguish a simultaneous second conversion failure from that older
+state; the adapters avoid the unsafe false positive.
 
 ## Wasm FFI adapter
 
@@ -46,4 +56,5 @@ MOONRUN_OVERRIDE="$PWD/.moonrun/bin/moonrun" moon test --target wasm
 ```
 
 The pinned moonrun revision supports in-memory and policy-checked file-backed
-databases. File access remains subject to the host runtime's filesystem policy.
+databases. It uses `libsqlite3-sys` `0.38.2`, bundling SQLite `3.53.2`. File
+access remains subject to the host runtime's filesystem policy.

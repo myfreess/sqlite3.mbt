@@ -9,4 +9,11 @@ import {
   "moonbitlang/core/test",
 } for "test"
 
+// The compiler currently emits warning 79 for public derived/implemented
+// traits even when their methods are intentionally not promoted. Block-level
+// suppression does not cover this interface diagnostic, while explicit
+// extensions would add method-form APIs to the generated interface.
+
+warnings = "-79"
+
 supported_targets = "native+wasm"

@@ -2,21 +2,18 @@
 struct Connection(Ref[@ffi.Sqlite3?])
 
 ///|
-fn Connection::handle(
-  self : Connection,
-  loc : SourceLoc,
-) -> @ffi.Sqlite3 raise SqliteError {
+fn Connection::handle(self : Connection) -> @ffi.Sqlite3 raise SqliteError {
   match self.0.val {
     Some(db) => db
-    None => raise SqliteError((SQLITE_MISUSE, loc))
+    None => raise sqlite_misuse("sqlite3: connection is closed")
   }
 }
 
 ///|
-fn Connection::handle_for_errmsg(self : Connection) -> @ffi.Sqlite3 {
+fn Connection::error(self : Connection, raw_code : Int) -> SqliteError {
   match self.0.val {
-    Some(db) => db
-    None => abort("sqlite3: error message requested after connection close")
+    Some(db) => sqlite_error(raw_code, @ffi.sqlite3_errmsg(db))
+    None => sqlite_error(raw_code, "sqlite3: database connection is closed")
   }
 }
 
@@ -27,11 +24,10 @@ const SQLITE_OPEN_READWRITE : Int = 0x00000002
 const SQLITE_OPEN_CREATE : Int = 0x00000004
 
 ///|
-#callsite(autofill(loc))
-pub fn Connection::open(
-  filename : String,
-  loc~ : SourceLoc,
-) -> Connection raise SqliteError {
+pub fn Connection::open(filename : String) -> Connection raise SqliteError {
+  if filename.contains_code_unit(0x0000) {
+    raise sqlite_misuse("sqlite3: filename contains a NUL code unit")
+  }
   let filename = @utf8.encode(filename)
   let flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE
   let rescode = Ref(SQLITE_OK)
@@ -39,17 +35,18 @@ pub fn Connection::open(
   if rescode.val == SQLITE_OK {
     return Connection(Ref(Some(db)))
   } else {
+    let error = if @ffi.sqlite3_is_null(db) {
+      sqlite_error(rescode.val, "sqlite3: failed to allocate a database handle")
+    } else {
+      sqlite_error(rescode.val, @ffi.sqlite3_errmsg(db))
+    }
     let _ = @ffi.sqlite3_close(db)
-    raise SqliteError((rescode.val, loc))
+    raise error
   }
 }
 
 ///|
-#callsite(autofill(loc))
-pub fn Connection::close(
-  self : Connection,
-  loc~ : SourceLoc,
-) -> Unit raise SqliteError {
+pub fn Connection::close(self : Connection) -> Unit raise SqliteError {
   match self.0.val {
     None => ()
     Some(db) => {
@@ -57,7 +54,7 @@ pub fn Connection::close(
       if rescode == SQLITE_OK {
         self.0.val = None
       } else {
-        raise SqliteError((rescode, loc))
+        raise self.error(rescode)
       }
     }
   }

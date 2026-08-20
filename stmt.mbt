@@ -1,23 +1,58 @@
 ///|
-struct Statement(Ref[@ffi.Sqlite3Stmt?])
+struct Statement {
+  mut handle : @ffi.Sqlite3Stmt?
+  mut has_row : Bool
+  mut column_types : Array[Int]?
+  connection : Connection
+}
 
 ///|
-fn Statement::handle(
+fn Statement::get_handle(
   self : Statement,
-  loc : SourceLoc,
 ) -> @ffi.Sqlite3Stmt raise SqliteError {
-  match self.0.val {
+  match self.handle {
     Some(handle) => handle
-    None => raise SqliteError((SQLITE_MISUSE, loc))
+    None => raise sqlite_misuse("sqlite3: statement is finalized")
   }
 }
 
 ///|
-fn Statement::handle_for_column(self : Statement) -> @ffi.Sqlite3Stmt {
-  match self.0.val {
-    Some(handle) => handle
-    None => abort("sqlite3: column access after statement finalization")
+fn Statement::column_info(
+  self : Statement,
+  index : Int,
+) -> (@ffi.Sqlite3Stmt, Int) raise SqliteError {
+  match (self.handle, self.has_row) {
+    (Some(handle), true) => {
+      let column_count = @ffi.sqlite3_column_count(handle)
+      if index < 0 || index >= column_count {
+        raise sqlite_misuse(
+          "sqlite3: column index \{index} is outside 0..<\{column_count}",
+        )
+      }
+      // SQLite only guarantees the initial storage class before a coercing
+      // accessor runs. Cache it on the first read of each cell so typed and
+      // dynamic reads remain order-independent within the current row.
+      let types = match self.column_types {
+        Some(types) => types
+        None => {
+          let types = Array::make(column_count, 0)
+          self.column_types = Some(types)
+          types
+        }
+      }
+      if types[index] == 0 {
+        types[index] = @ffi.sqlite3_column_type(handle, index)
+      }
+      (handle, types[index])
+    }
+    (None, _) => raise sqlite_misuse("sqlite3: statement is finalized")
+    _ => raise sqlite_misuse("sqlite3: statement has no current row")
   }
+}
+
+///|
+fn Statement::error(self : Statement, raw_code : Int) -> SqliteError {
+  self.connection.error(raw_code)
 }
 
 ///|
@@ -36,92 +71,76 @@ fn sql_tail_is_ignorable(sql : String, start : Int) -> Bool {
 }
 
 ///|
-#callsite(autofill(loc))
 pub fn Connection::prepare(
   self : Connection,
   stmt : String,
-  loc~ : SourceLoc,
 ) -> Statement raise SqliteError {
   if stmt.contains_code_unit(0x0000) {
-    raise SqliteError((SQLITE_MISUSE, loc))
+    raise sqlite_misuse("sqlite3: SQL contains a NUL code unit")
   }
+  let db = self.handle()
   let tail_offset = Ref(-1)
   let rescode = Ref(SQLITE_OK)
-  let out = @ffi.sqlite3_prepare16_v2(
-    self.handle(loc),
-    stmt,
-    tail_offset,
-    rescode,
-  )
+  let out = @ffi.sqlite3_prepare16_v2(db, stmt, tail_offset, rescode)
   if rescode.val != SQLITE_OK {
-    raise SqliteError((rescode.val, loc))
+    raise sqlite_error(rescode.val, @ffi.sqlite3_errmsg(db))
   }
   if tail_offset.val < 0 {
-    raise SqliteError((SQLITE_MISUSE, loc))
+    raise sqlite_misuse("sqlite3: SQL does not contain a statement")
   }
   if tail_offset.val > stmt.length() ||
     !sql_tail_is_ignorable(stmt, tail_offset.val) {
     let _ = @ffi.sqlite3_finalize(out)
-    raise SqliteError((SQLITE_MISUSE, loc))
+    raise sqlite_misuse("sqlite3: SQL contains more than one statement")
   }
-  Statement(Ref(Some(out)))
+  { handle: Some(out), has_row: false, column_types: None, connection: self }
 }
 
 ///|
-#callsite(autofill(loc))
 pub fn[T : Bind] Statement::bind(
   self : Statement,
   index~ : Int,
   val : T,
-  loc~ : SourceLoc,
 ) -> Unit raise SqliteError {
-  T::bind(self, index, val, loc~)
+  T::bind(self, index, val)
 }
 
 ///|
-pub fn[T : Column] Statement::column(self : Statement, index~ : Int) -> T {
+pub fn[T : Column] Statement::column(
+  self : Statement,
+  index~ : Int,
+) -> T raise SqliteError {
   T::column(self, index)
 }
 
 ///|
-#callsite(autofill(loc))
-pub fn Statement::step(
-  self : Statement,
-  loc~ : SourceLoc,
-) -> Bool raise SqliteError {
-  let rescode = @ffi.sqlite3_step(self.handle(loc))
+pub fn Statement::step(self : Statement) -> Bool raise SqliteError {
+  let handle = self.get_handle()
+  self.has_row = false
+  self.column_types = None
+  let rescode = @ffi.sqlite3_step(handle)
   match rescode {
     SQLITE_DONE => false
-    SQLITE_ROW => true
-    _ => raise SqliteError((rescode, loc))
+    SQLITE_ROW => {
+      self.has_row = true
+      true
+    }
+    _ => raise self.error(rescode)
   }
 }
 
 ///|
-#callsite(autofill(loc))
-pub fn Statement::step_once(
-  self : Statement,
-  loc~ : SourceLoc,
-) -> Unit raise SqliteError {
-  if self.step(loc~) {
-    raise SqliteError((SQLITE_ROW, loc))
-  }
-}
-
-///|
-#callsite(autofill(loc))
-pub fn Statement::finalize(
-  self : Statement,
-  loc~ : SourceLoc,
-) -> Unit raise SqliteError {
-  match self.0.val {
+pub fn Statement::finalize(self : Statement) -> Unit raise SqliteError {
+  match self.handle {
     None => ()
     Some(handle) => {
       // sqlite3_finalize consumes the statement even when it reports an error.
-      self.0.val = None
+      self.handle = None
+      self.has_row = false
+      self.column_types = None
       let rescode = @ffi.sqlite3_finalize(handle)
       if rescode != SQLITE_OK {
-        raise SqliteError((rescode, loc))
+        raise self.error(rescode)
       }
     }
   }

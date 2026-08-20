@@ -2,13 +2,13 @@
 
 `moonbit-community/sqlite3` is a lightweight, low-level SQLite3 binding for MoonBit. It exposes the core SQLite C API workflow for opening connections, preparing statements, binding parameters, stepping through results, and reading column values. It is intended for cases where you want a small and direct embedded database interface rather than an ORM or a full query framework.
 
-This package supports the `native` and `wasm` targets. The native backend vendors the SQLite amalgamation source directly in the repository; the Wasm backend uses moonrun's `moonbitlang/sqlite` host imports. The bundled native SQLite version is `3.49.1`.
+This package supports the `native` and `wasm` targets. The native backend vendors SQLite `3.49.1` directly in the repository; the Wasm backend uses moonrun's `moonbitlang/sqlite` host imports. The pinned moonrun revision described in `dev.md` bundles SQLite `3.53.2`; other Wasm hosts control their own SQLite version.
 
 ## Features
 
 - Thin wrapper design with a small API surface that stays close to SQLite's native workflow.
 - Support for prepared statements, positional parameter binding, and row-by-row result reading.
-- Common SQLite result code constants exported for matching and diagnostics.
+- Structured primary and extended error codes with the SQLite diagnostic message captured at the failure site.
 - The native backend ships with `sqlite3.c` and `sqlite3.h`, so it does not rely on a system-installed SQLite.
 - The Wasm backend keeps SQLite pointers inside the host and represents connections and statements with opaque handles.
 
@@ -38,7 +38,7 @@ test "quick start" {
       #|);
     ),
   )
-  create.step_once()
+  assert_eq(create.step(), false)
   create.finalize()
 
   let insert = conn.prepare(
@@ -49,7 +49,7 @@ test "quick start" {
   insert.bind(index=1, 1)
   insert.bind(index=2, "alice")
   insert.bind(index=3, 98.5)
-  insert.step_once()
+  assert_eq(insert.step(), false)
   insert.finalize()
 
   let query = conn.prepare(
@@ -58,10 +58,10 @@ test "quick start" {
     ),
   )
   assert_true(query.step())
-  let id : Int = query.column(index=0)
+  let id : Int64 = query.column(index=0)
   let name : String = query.column(index=1)
   let score : Double = query.column(index=2)
-  assert_eq(id, 1)
+  assert_eq(id, 1L)
   assert_eq(name, "alice")
   assert_eq(score.to_int(), 98)
   assert_eq(query.step(), false)
@@ -75,9 +75,9 @@ test "quick start" {
 
 1. `Connection::open` opens the database. Pass `":memory:"` for an in-memory database. File paths such as `"app.db"` work when the selected backend and runtime grant filesystem access.
 2. `Connection::prepare` creates a prepared statement.
-3. For statements that do not return rows, call `Statement::step_once()`.
+3. Call `Statement::step()` to advance the statement. Statements that do not return rows normally return `false` on the first call, meaning execution is complete.
 4. For queries, call `Statement::step()` repeatedly. It returns `true` when a row is available and `false` when the result set is exhausted.
-5. Use `Statement::column(index=...)` to read column values from the current row.
+5. Use `Statement::column(index=...)` to read column values from the current row. It raises `SqliteError` with `code=Misuse` unless the preceding `step()` returned `true`.
 6. Call `Statement::finalize()` to release the statement.
 7. Call `Connection::close()` when you are done with the connection.
 
@@ -98,7 +98,7 @@ test "blob round trip" {
       #|);
     ),
   )
-  create.step_once()
+  assert_eq(create.step(), false)
   create.finalize()
 
   let insert1 = conn.prepare(
@@ -108,7 +108,7 @@ test "blob round trip" {
   )
   insert1.bind(index=1, 1)
   insert1.bind(index=2, b"abc")
-  insert1.step_once()
+  assert_eq(insert1.step(), false)
   insert1.finalize()
 
   let insert2 = conn.prepare(
@@ -118,7 +118,7 @@ test "blob round trip" {
   )
   insert2.bind(index=1, 2)
   insert2.bind(index=2, b"xyz")
-  insert2.step_once()
+  assert_eq(insert2.step(), false)
   insert2.finalize()
 
   let query = conn.prepare(
@@ -128,15 +128,15 @@ test "blob round trip" {
   )
 
   assert_true(query.step())
-  let first_id : Int = query.column(index=0)
+  let first_id : Int64 = query.column(index=0)
   let first_payload : Bytes = query.column(index=1)
-  assert_eq(first_id, 1)
+  assert_eq(first_id, 1L)
   assert_eq(first_payload, b"abc")
 
   assert_true(query.step())
-  let second_id : Int = query.column(index=0)
+  let second_id : Int64 = query.column(index=0)
   let second_payload : Bytes = query.column(index=1)
-  assert_eq(second_id, 2)
+  assert_eq(second_id, 2L)
   assert_eq(second_payload, b"xyz")
 
   assert_eq(query.step(), false)
@@ -155,14 +155,19 @@ All public operations that can fail raise `SqliteError`. If you want explicit re
 test "error handling" {
   let conn = @sqlite3.Connection::open(":memory:")
 
-  @test.assert_raise(() => conn.prepare("SELECT FROM"))
-
-  assert_true(conn.get_errmsg().length() > 0)
+  let error = @test.expect_error(() => conn.prepare("SELECT FROM"))
+  match error {
+    @sqlite3.SqliteError(code~, extended~, msg~) => {
+      assert_eq(code, @sqlite3.ErrorCode::Error)
+      assert_eq(extended, None)
+      assert_true(msg.length() > 0)
+    }
+  }
   conn.close()
 }
 ```
 
-`SqliteError` currently wraps `(result_code, SourceLoc)`, so you can match on SQLite result codes while also retaining the call site for debugging.
+`SqliteError` contains a typed primary `ErrorCode`, an optional typed `ExtendedCode`, and SQLite's diagnostic message. The wrapper captures the message at the point of failure; callers do not need to query mutable connection error state.
 
 ## Public API Overview
 
@@ -171,14 +176,12 @@ test "error handling" {
 - `Connection::open(filename)`: open a database connection.
 - `Connection::prepare(sql)`: create a prepared statement.
 - `Connection::close()`: close the database connection.
-- `Connection::get_errmsg()`: read the most recent error message from the connection.
 
 ### `Statement`
 
 - `Statement::bind(index, value)`: bind a parameter. Parameter indexes start at `1`, matching the SQLite C API.
-- `Statement::step()`: execute one step. Query statements return `true` when a row is available and `false` when iteration is complete.
-- `Statement::step_once()`: execute once and require that the statement produces no row. This is suitable for `CREATE`, `INSERT`, `UPDATE`, and `DELETE`. If the statement does return a row, it raises `SQLITE_ROW`.
-- `Statement::column(index)`: read a column value from the current row. Column indexes start at `0`.
+- `Statement::step()`: advance the statement once. It returns `true` when a row is available and `false` when execution is complete. `CREATE`, `INSERT`, `UPDATE`, and `DELETE` statements without a `RETURNING` clause normally return `false` on the first call.
+- `Statement::column(index)`: read a column value from the current row. Column indexes start at `0`; calling it before `step()` yields a row, after `step()` returns `false`, or after finalization raises an error with `code=Misuse`.
 - `Statement::finalize()`: destroy the prepared statement and release its native resources.
 
 ### `Bind` and `Column`
@@ -187,38 +190,55 @@ The current public implementations support the following MoonBit types:
 
 | MoonBit type | Bound as SQLite | Read from SQLite as |
 | --- | --- | --- |
-| `Int` | `INTEGER` | `Int` |
+| `Int` | `INTEGER` | — |
 | `Int64` | `INTEGER` | `Int64` |
 | `Double` | `REAL` | `Double` |
 | `String` | `TEXT` | `String` |
+| `StringView` | `TEXT` | — |
 | `Bytes` | `BLOB` | `Bytes` |
+| `BytesView` | `BLOB` | — |
+| `Value` | Exact SQLite storage class, including `NULL` | `Value` |
+
+Use `Value` when a value may be `NULL` or its SQLite storage class is not
+known statically. It uses the existing `bind` and `column` methods, so no
+separate dynamic statement interface is required:
+
+```mbt check
+///|
+test "dynamic value" {
+  let conn = @sqlite3.Connection::open(":memory:")
+  let stmt = conn.prepare("SELECT ?")
+  stmt.bind(index=1, @sqlite3.Value::Null)
+  assert_true(stmt.step())
+  let value : @sqlite3.Value = stmt.column(index=0)
+  assert_eq(value, @sqlite3.Value::Null)
+  stmt.finalize()
+  conn.close()
+}
+```
+
+`Value::Integer` and typed integer columns use `Int64`, preserving SQLite's
+full integer range. Convert to `Int` explicitly only when the application's
+domain guarantees that the value fits. Request `Value` when distinguishing
+`NULL` is significant.
 
 ## Constraints and Notes
 
 - This is a manual resource management API. Every `Statement` must be explicitly `finalize()`d, and every `Connection` must be explicitly `close()`d. Dropping these values does not release SQLite resources on any backend.
 - The Wasm backend requires a runtime that provides the `moonbitlang/sqlite` imports. Filesystem access and SQL policy are enforced by the host runtime.
-- The current public API does not expose `reset`, so a statement that has already been executed should generally be treated as a one-shot object. If you want to run it again, preparing a new statement is the simplest path.
-- `Connection::prepare` accepts exactly one SQL statement. Empty input, comment-only input, and additional statements after the first one raise `SQLITE_MISUSE`; trailing whitespace, comments, and empty semicolons are allowed.
+- The bundled native SQLite `3.49.1` build and the pinned moonrun SQLite `3.53.2` build both use SQLite's automatic reset behavior: calling `step()` again after it returns `false` reruns the statement with its existing bindings. The public API does not expose `reset`, so prepare a new statement when you need to change bindings between executions.
+- `Connection::prepare` accepts exactly one SQL statement. Empty input, comment-only input, and additional statements after the first one raise an error with `code=Misuse`; trailing whitespace, comments, and empty semicolons are allowed.
 - Parameter indexes start at `1`, while column indexes start at `0`. It is easy to mix these up.
 - SQL and `String` values cross both backend boundaries as UTF-16 code units. Native targets require little-endian UTF-16, while WebAssembly memory is little-endian by definition. SQLite converts text when the database file uses a different encoding. Use `Bytes` when the value is raw binary data rather than text.
 - `Connection::open` uses `sqlite3_open_v2`, so a new database defaults to UTF-8. To select UTF-16LE or UTF-16BE storage, run `PRAGMA encoding` before creating any schema objects; this choice is independent of the native string API.
-- There is currently no public API for binding or decoding `NULL`, and no public column-type inspection API. If you need to distinguish `NULL` precisely, you will need to extend the library.
+- The package does not expose declared column types or result-column names. `Value` reports the initial runtime storage class of a value in the current row. That class is cached before typed coercion, so reading the same cell through a typed decoder first does not change the later `Value` variant.
 - The package is intentionally focused on SQLite basics and does not add transaction wrappers, batch helpers, or named-parameter support.
 
-## Result Code Constants
+## Error Codes
 
-The package exports common SQLite result code constants, including:
+`ErrorCode` represents SQLite's primary error categories, while `ExtendedCode` provides the additional classification returned by some SQLite operations. Unknown codes from a newer SQLite runtime are preserved as `Unknown(raw_code)`.
 
-- `SQLITE_OK`
-- `SQLITE_ROW`
-- `SQLITE_DONE`
-- `SQLITE_ERROR`
-- `SQLITE_BUSY`
-- `SQLITE_MISUSE`
-- `SQLITE_CONSTRAINT`
-- `SQLITE_CANTOPEN`
-
-These constants are useful for categorizing failures and producing clearer diagnostics in higher-level code.
+SQLite may allocate while converting a result to `TEXT` or `BLOB`. Both adapters check that conversion immediately and raise `SqliteError(code=NoMem, ...)` when SQLite attributes a new allocation failure to it, rather than returning an empty value. Genuine empty values and SQL `NULL` retain SQLite's typed conversion behavior; request `Value` when they must be distinguished.
 
 ## Development and Verification
 

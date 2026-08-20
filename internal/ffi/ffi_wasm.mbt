@@ -1,4 +1,10 @@
 ///|
+const SQLITE_OK = 0
+
+///|
+const SQLITE_NOMEM = 7
+
+///|
 fn sqlite3_null_handle_import() -> UInt64 = "moonbitlang/sqlite" "sqlite3_null_handle"
 
 ///|
@@ -155,6 +161,11 @@ fn sqlite3_close_impl(database : Sqlite3Handle) -> Int {
 }
 
 ///|
+fn sqlite3_is_null_impl(database : Sqlite3Handle) -> Bool {
+  database.0 == sqlite3_null_handle_import()
+}
+
+///|
 fn sqlite3_errmsg_impl(database : Sqlite3Handle) -> String {
   let length = sqlite3_errmsg16_length_import(database.0)
   let output = String::make(length, '\u0000')
@@ -243,8 +254,16 @@ fn sqlite3_bind_text_impl(
   statement : Sqlite3StmtHandle,
   index : Int,
   value : String,
+  value_offset : Int,
+  value_length : Int,
 ) -> Int {
-  sqlite3_bind_text16_import(statement.0, index, value, 0, value.length())
+  sqlite3_bind_text16_import(
+    statement.0,
+    index,
+    value,
+    value_offset,
+    value_length,
+  )
 }
 
 ///|
@@ -252,18 +271,21 @@ fn sqlite3_bind_blob_impl(
   statement : Sqlite3StmtHandle,
   index : Int,
   value : Bytes,
+  value_offset : Int,
+  value_length : Int,
 ) -> Int {
-  sqlite3_bind_blob_import(statement.0, index, value, 0, value.length())
+  sqlite3_bind_blob_import(
+    statement.0,
+    index,
+    value,
+    value_offset,
+    value_length,
+  )
 }
 
 ///|
 fn sqlite3_bind_null_impl(statement : Sqlite3StmtHandle, index : Int) -> Int {
   sqlite3_bind_null_import(statement.0, index)
-}
-
-///|
-fn sqlite3_column_int_impl(statement : Sqlite3StmtHandle, index : Int) -> Int {
-  sqlite3_column_int64_import(statement.0, index).to_int()
 }
 
 ///|
@@ -284,10 +306,27 @@ fn sqlite3_column_double_impl(
 
 ///|
 fn sqlite3_column_text_impl(
+  database : Sqlite3Handle,
   statement : Sqlite3StmtHandle,
   index : Int,
+  rescode : Ref[Int],
 ) -> String {
+  let prior_code = sqlite3_errcode_import(database.0)
   let length = sqlite3_column_text16_length_import(statement.0, index)
+  if length == 0 {
+    // The host deliberately makes no further SQLite call when the value
+    // accessor returns NULL, leaving this error available to the guest.
+    let code = sqlite3_errcode_import(database.0)
+    // Connection error state is persistent, so only a transition to NOMEM can
+    // be attributed to this conversion rather than another statement.
+    rescode.val = if code == SQLITE_NOMEM && prior_code != SQLITE_NOMEM {
+      code
+    } else {
+      SQLITE_OK
+    }
+    return ""
+  }
+  rescode.val = SQLITE_OK
   let output = String::make(length, '\u0000')
   let copied = sqlite3_column_text16_import(
     statement.0,
@@ -303,10 +342,24 @@ fn sqlite3_column_text_impl(
 
 ///|
 fn sqlite3_column_blob_impl(
+  database : Sqlite3Handle,
   statement : Sqlite3StmtHandle,
   index : Int,
+  rescode : Ref[Int],
 ) -> Bytes {
+  let prior_code = sqlite3_errcode_import(database.0)
   let length = sqlite3_column_blob_length_import(statement.0, index)
+  if length == 0 {
+    let code = sqlite3_errcode_import(database.0)
+    // Zero-length BLOBs and SQL NULL also produce a null pointer.
+    rescode.val = if code == SQLITE_NOMEM && prior_code != SQLITE_NOMEM {
+      code
+    } else {
+      SQLITE_OK
+    }
+    return b""
+  }
+  rescode.val = SQLITE_OK
   let output : FixedArray[Byte] = FixedArray::make(length, 0)
   let copied = sqlite3_column_blob_import(
     statement.0,

@@ -19,6 +19,11 @@ pub fn sqlite3_close(database : Sqlite3) -> Int {
 }
 
 ///|
+pub fn sqlite3_is_null(database : Sqlite3) -> Bool {
+  sqlite3_is_null_impl(database.0)
+}
+
+///|
 pub fn sqlite3_errmsg(database : Sqlite3) -> String {
   sqlite3_errmsg_impl(database.0)
 }
@@ -84,28 +89,35 @@ pub fn sqlite3_bind_double(
 pub fn sqlite3_bind_text(
   statement : Sqlite3Stmt,
   index : Int,
-  value : String,
+  value : StringView,
 ) -> Int {
-  sqlite3_bind_text_impl(statement.0, index, value)
+  sqlite3_bind_text_impl(
+    statement.0,
+    index,
+    value.data(),
+    value.start_offset(),
+    value.length(),
+  )
 }
 
 ///|
 pub fn sqlite3_bind_blob(
   statement : Sqlite3Stmt,
   index : Int,
-  value : Bytes,
+  value : BytesView,
 ) -> Int {
-  sqlite3_bind_blob_impl(statement.0, index, value)
+  sqlite3_bind_blob_impl(
+    statement.0,
+    index,
+    value.data(),
+    value.start_offset(),
+    value.length(),
+  )
 }
 
 ///|
 pub fn sqlite3_bind_null(statement : Sqlite3Stmt, index : Int) -> Int {
   sqlite3_bind_null_impl(statement.0, index)
-}
-
-///|
-pub fn sqlite3_column_int(statement : Sqlite3Stmt, index : Int) -> Int {
-  sqlite3_column_int_impl(statement.0, index)
 }
 
 ///|
@@ -119,13 +131,23 @@ pub fn sqlite3_column_double(statement : Sqlite3Stmt, index : Int) -> Double {
 }
 
 ///|
-pub fn sqlite3_column_text(statement : Sqlite3Stmt, index : Int) -> String {
-  sqlite3_column_text_impl(statement.0, index)
+pub fn sqlite3_column_text(
+  database : Sqlite3,
+  statement : Sqlite3Stmt,
+  index : Int,
+  rescode : Ref[Int],
+) -> String {
+  sqlite3_column_text_impl(database.0, statement.0, index, rescode)
 }
 
 ///|
-pub fn sqlite3_column_blob(statement : Sqlite3Stmt, index : Int) -> Bytes {
-  sqlite3_column_blob_impl(statement.0, index)
+pub fn sqlite3_column_blob(
+  database : Sqlite3,
+  statement : Sqlite3Stmt,
+  index : Int,
+  rescode : Ref[Int],
+) -> Bytes {
+  sqlite3_column_blob_impl(database.0, statement.0, index, rescode)
 }
 
 ///|

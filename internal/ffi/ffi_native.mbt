@@ -18,6 +18,9 @@ extern "c" fn sqlite3_open_v2_impl(
 extern "c" fn sqlite3_close_impl(db : Sqlite3Handle) -> Int = "sqlite3_close"
 
 ///|
+extern "c" fn sqlite3_is_null_impl(db : Sqlite3Handle) -> Bool = "moonbit_sqlite3_is_null"
+
+///|
 extern "c" fn sqlite3_errmsg_impl(db : Sqlite3Handle) -> String = "moonbit_sqlite3_errmsg"
 
 ///|
@@ -72,6 +75,8 @@ extern "c" fn sqlite3_bind_text_impl(
   stmt : Sqlite3StmtHandle,
   idx : Int,
   text : String,
+  text_offset : Int,
+  text_length : Int,
 ) -> Int = "moonbit_sqlite3_bind_text"
 
 ///|
@@ -80,6 +85,8 @@ extern "c" fn sqlite3_bind_blob_impl(
   stmt : Sqlite3StmtHandle,
   idx : Int,
   blob : Bytes,
+  blob_offset : Int,
+  blob_length : Int,
 ) -> Int = "moonbit_sqlite3_bind_blob"
 
 ///|
@@ -89,12 +96,6 @@ extern "c" fn sqlite3_bind_null_impl(
 ) -> Int = "sqlite3_bind_null"
 
 // --- Column functions ---
-
-///|
-extern "c" fn sqlite3_column_int_impl(
-  stmt : Sqlite3StmtHandle,
-  idx : Int,
-) -> Int = "sqlite3_column_int"
 
 ///|
 extern "c" fn sqlite3_column_int64_impl(
@@ -109,15 +110,23 @@ extern "c" fn sqlite3_column_double_impl(
 ) -> Double = "sqlite3_column_double"
 
 ///|
+/// SQLite reports conversion allocation failures through the connection, so
+/// the adapter returns that result code alongside the copied value.
+#borrow(rescode)
 extern "c" fn sqlite3_column_text_impl(
+  db : Sqlite3Handle,
   stmt : Sqlite3StmtHandle,
   idx : Int,
+  rescode : Ref[Int],
 ) -> String = "moonbit_sqlite3_column_text"
 
 ///|
+#borrow(rescode)
 extern "c" fn sqlite3_column_blob_impl(
+  db : Sqlite3Handle,
   stmt : Sqlite3StmtHandle,
   idx : Int,
+  rescode : Ref[Int],
 ) -> Bytes = "moonbit_sqlite3_column_blob"
 
 ///|
