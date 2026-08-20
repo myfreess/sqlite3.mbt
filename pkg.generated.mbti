@@ -10,6 +10,7 @@ pub const SQLITE_ABORT : Int = 4
 
 pub const SQLITE_AUTH : Int = 23
 
+#deprecated
 pub const SQLITE_BLOB : Int = 2
 
 pub const SQLITE_BUSY : Int = 5
@@ -28,12 +29,14 @@ pub const SQLITE_ERROR : Int = 1
 
 pub const SQLITE_ERROR_MISSING_COLLSEQ : Int = 257
 
+#deprecated
 pub const SQLITE_FLOAT : Int = 2
 
 pub const SQLITE_FORMAT : Int = 24
 
 pub const SQLITE_FULL : Int = 13
 
+#deprecated
 pub const SQLITE_INTEGER : Int = 1
 
 pub const SQLITE_INTERNAL : Int = 2

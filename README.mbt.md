@@ -221,6 +221,7 @@ A storage class describes the *value*, not the column's declared type: a column 
 - SQL and `String` values cross both backend boundaries as UTF-16 code units. Native targets require little-endian UTF-16, while WebAssembly memory is little-endian by definition. SQLite converts text when the database file uses a different encoding. Use `Bytes` when the value is raw binary data rather than text.
 - `Connection::open` uses `sqlite3_open_v2`, so a new database defaults to UTF-8. To select UTF-16LE or UTF-16BE storage, run `PRAGMA encoding` before creating any schema objects; this choice is independent of the native string API.
 - `Statement::column_type` is only meaningful after `step` has returned `true`, and should be called before `column` reads the value: SQLite does not guarantee the reported type once a conversion has happened.
+- The `SQLITE_INTEGER`, `SQLITE_FLOAT`, and `SQLITE_BLOB` constants are deprecated in favour of `ColumnType`. Nothing ever consumed them, which is why `SQLITE_BLOB` went unnoticed carrying the value 2 rather than 4.
 - The package is intentionally focused on SQLite basics and does not add transaction wrappers, batch helpers, or named-parameter support.
 
 ## Result Code Constants
