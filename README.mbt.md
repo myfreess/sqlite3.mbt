@@ -2,7 +2,7 @@
 
 `moonbit-community/sqlite3` is a lightweight, low-level SQLite3 binding for MoonBit. It exposes the core SQLite C API workflow for opening connections, preparing statements, binding parameters, stepping through results, and reading column values. It is intended for cases where you want a small and direct embedded database interface rather than an ORM or a full query framework.
 
-This package supports the `native` and `wasm` targets. The native backend vendors the SQLite amalgamation source directly in the repository; the Wasm backend uses moonrun's `moonbitlang/sqlite` host imports. The bundled native SQLite version is `3.49.1`.
+This package supports the `native` and `wasm` targets. The native backend vendors SQLite `3.49.1` directly in the repository; the Wasm backend uses moonrun's `moonbitlang/sqlite` host imports. The pinned moonrun revision described in `dev.md` bundles SQLite `3.53.2`; other Wasm hosts control their own SQLite version.
 
 ## Features
 
@@ -226,7 +226,7 @@ domain guarantees that the value fits. Request `Value` when distinguishing
 
 - This is a manual resource management API. Every `Statement` must be explicitly `finalize()`d, and every `Connection` must be explicitly `close()`d. Dropping these values does not release SQLite resources on any backend.
 - The Wasm backend requires a runtime that provides the `moonbitlang/sqlite` imports. Filesystem access and SQL policy are enforced by the host runtime.
-- Both bundled backends use SQLite's automatic reset behavior: calling `step()` again after it returns `false` reruns the statement with its existing bindings. The public API does not expose `reset`, so prepare a new statement when you need to change bindings between executions.
+- The bundled native SQLite `3.49.1` build and the pinned moonrun SQLite `3.53.2` build both use SQLite's automatic reset behavior: calling `step()` again after it returns `false` reruns the statement with its existing bindings. The public API does not expose `reset`, so prepare a new statement when you need to change bindings between executions.
 - `Connection::prepare` accepts exactly one SQL statement. Empty input, comment-only input, and additional statements after the first one raise an error with `code=Misuse`; trailing whitespace, comments, and empty semicolons are allowed.
 - Parameter indexes start at `1`, while column indexes start at `0`. It is easy to mix these up.
 - SQL and `String` values cross both backend boundaries as UTF-16 code units. Native targets require little-endian UTF-16, while WebAssembly memory is little-endian by definition. SQLite converts text when the database file uses a different encoding. Use `Bytes` when the value is raw binary data rather than text.

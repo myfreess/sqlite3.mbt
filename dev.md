@@ -47,4 +47,5 @@ MOONRUN_OVERRIDE="$PWD/.moonrun/bin/moonrun" moon test --target wasm
 ```
 
 The pinned moonrun revision supports in-memory and policy-checked file-backed
-databases. File access remains subject to the host runtime's filesystem policy.
+databases. It uses `libsqlite3-sys` `0.38.2`, bundling SQLite `3.53.2`. File
+access remains subject to the host runtime's filesystem policy.
