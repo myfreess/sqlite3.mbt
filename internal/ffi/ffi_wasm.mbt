@@ -1,4 +1,10 @@
 ///|
+const SQLITE_OK = 0
+
+///|
+const SQLITE_NOMEM = 7
+
+///|
 fn sqlite3_null_handle_import() -> UInt64 = "moonbitlang/sqlite" "sqlite3_null_handle"
 
 ///|
@@ -300,10 +306,22 @@ fn sqlite3_column_double_impl(
 
 ///|
 fn sqlite3_column_text_impl(
+  database : Sqlite3Handle,
   statement : Sqlite3StmtHandle,
   index : Int,
+  rescode : Ref[Int],
 ) -> String {
   let length = sqlite3_column_text16_length_import(statement.0, index)
+  if length == 0 {
+    // The host deliberately makes no further SQLite call when the value
+    // accessor returns NULL, leaving this error available to the guest.
+    let code = sqlite3_errcode_import(database.0)
+    // A successful step may leave SQLITE_ROW here. Of the column conversion
+    // calls involved, only SQLITE_NOMEM denotes failure.
+    rescode.val = if code == SQLITE_NOMEM { code } else { SQLITE_OK }
+    return ""
+  }
+  rescode.val = SQLITE_OK
   let output = String::make(length, '\u0000')
   let copied = sqlite3_column_text16_import(
     statement.0,
@@ -319,10 +337,19 @@ fn sqlite3_column_text_impl(
 
 ///|
 fn sqlite3_column_blob_impl(
+  database : Sqlite3Handle,
   statement : Sqlite3StmtHandle,
   index : Int,
+  rescode : Ref[Int],
 ) -> Bytes {
   let length = sqlite3_column_blob_length_import(statement.0, index)
+  if length == 0 {
+    let code = sqlite3_errcode_import(database.0)
+    // Zero-length BLOBs and SQL NULL also produce a null pointer.
+    rescode.val = if code == SQLITE_NOMEM { code } else { SQLITE_OK }
+    return b""
+  }
+  rescode.val = SQLITE_OK
   let output : FixedArray[Byte] = FixedArray::make(length, 0)
   let copied = sqlite3_column_blob_import(
     statement.0,

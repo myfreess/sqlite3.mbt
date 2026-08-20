@@ -15,10 +15,32 @@ pub impl Column for Double with fn column(stmt, index) {
 
 ///|
 pub impl Column for Bytes with fn column(stmt, index) {
-  @ffi.sqlite3_column_blob(stmt.handle_for_column(index), index)
+  let statement = stmt.handle_for_column(index)
+  let rescode = Ref(SQLITE_OK)
+  let value = @ffi.sqlite3_column_blob(
+    stmt.connection.handle(),
+    statement,
+    index,
+    rescode,
+  )
+  if rescode.val != SQLITE_OK {
+    raise stmt.error(rescode.val)
+  }
+  value
 }
 
 ///|
 pub impl Column for String with fn column(stmt, index) {
-  @ffi.sqlite3_column_text(stmt.handle_for_column(index), index)
+  let statement = stmt.handle_for_column(index)
+  let rescode = Ref(SQLITE_OK)
+  let value = @ffi.sqlite3_column_text(
+    stmt.connection.handle(),
+    statement,
+    index,
+    rescode,
+  )
+  if rescode.val != SQLITE_OK {
+    raise stmt.error(rescode.val)
+  }
+  value
 }

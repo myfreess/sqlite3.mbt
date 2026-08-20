@@ -131,13 +131,23 @@ pub fn sqlite3_column_double(statement : Sqlite3Stmt, index : Int) -> Double {
 }
 
 ///|
-pub fn sqlite3_column_text(statement : Sqlite3Stmt, index : Int) -> String {
-  sqlite3_column_text_impl(statement.0, index)
+pub fn sqlite3_column_text(
+  database : Sqlite3,
+  statement : Sqlite3Stmt,
+  index : Int,
+  rescode : Ref[Int],
+) -> String {
+  sqlite3_column_text_impl(database.0, statement.0, index, rescode)
 }
 
 ///|
-pub fn sqlite3_column_blob(statement : Sqlite3Stmt, index : Int) -> Bytes {
-  sqlite3_column_blob_impl(statement.0, index)
+pub fn sqlite3_column_blob(
+  database : Sqlite3,
+  statement : Sqlite3Stmt,
+  index : Int,
+  rescode : Ref[Int],
+) -> Bytes {
+  sqlite3_column_blob_impl(database.0, statement.0, index, rescode)
 }
 
 ///|

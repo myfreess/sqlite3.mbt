@@ -280,6 +280,27 @@ test "value edge cases round trip" {
 }
 
 ///|
+test "empty and null text and blobs are not stale SQLite errors" {
+  let conn = @sqlite3.Connection::open(":memory:")
+  let stmt = conn.prepare("SELECT '', x'', NULL, NULL")
+  assert_true(stmt.step())
+  // Leave a real connection error after stepping. Column access must
+  // distinguish empty/NULL values from the unrelated prior failure.
+  let bind_error = @test.expect_error(() => stmt.bind(index=1, 1))
+  assert_true(bind_error is @sqlite3.SqliteError(code=Misuse, ..))
+  let empty_text : String = stmt.column(index=0)
+  let empty_blob : Bytes = stmt.column(index=1)
+  let null_text : String = stmt.column(index=2)
+  let null_blob : Bytes = stmt.column(index=3)
+  assert_eq(empty_text, "")
+  assert_eq(empty_blob, b"")
+  assert_eq(null_text, "")
+  assert_eq(null_blob, b"")
+  stmt.finalize()
+  conn.close()
+}
+
+///|
 test "public misuse reports structured errors" {
   let invalid_filename = @test.expect_error(() => {
     @sqlite3.Connection::open("sqlite3-test\u{00}suffix.db")

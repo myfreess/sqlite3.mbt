@@ -110,15 +110,23 @@ extern "c" fn sqlite3_column_double_impl(
 ) -> Double = "sqlite3_column_double"
 
 ///|
+/// SQLite reports conversion allocation failures through the connection, so
+/// the adapter returns that result code alongside the copied value.
+#borrow(rescode)
 extern "c" fn sqlite3_column_text_impl(
+  db : Sqlite3Handle,
   stmt : Sqlite3StmtHandle,
   idx : Int,
+  rescode : Ref[Int],
 ) -> String = "moonbit_sqlite3_column_text"
 
 ///|
+#borrow(rescode)
 extern "c" fn sqlite3_column_blob_impl(
+  db : Sqlite3Handle,
   stmt : Sqlite3StmtHandle,
   idx : Int,
+  rescode : Ref[Int],
 ) -> Bytes = "moonbit_sqlite3_column_blob"
 
 ///|

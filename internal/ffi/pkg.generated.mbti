@@ -20,7 +20,7 @@ pub fn sqlite3_bind_text(Sqlite3Stmt, Int, StringView) -> Int
 
 pub fn sqlite3_close(Sqlite3) -> Int
 
-pub fn sqlite3_column_blob(Sqlite3Stmt, Int) -> Bytes
+pub fn sqlite3_column_blob(Sqlite3, Sqlite3Stmt, Int, @ref.Ref[Int]) -> Bytes
 
 pub fn sqlite3_column_count(Sqlite3Stmt) -> Int
 
@@ -28,7 +28,7 @@ pub fn sqlite3_column_double(Sqlite3Stmt, Int) -> Double
 
 pub fn sqlite3_column_int64(Sqlite3Stmt, Int) -> Int64
 
-pub fn sqlite3_column_text(Sqlite3Stmt, Int) -> String
+pub fn sqlite3_column_text(Sqlite3, Sqlite3Stmt, Int, @ref.Ref[Int]) -> String
 
 pub fn sqlite3_column_type(Sqlite3Stmt, Int) -> Int
 
