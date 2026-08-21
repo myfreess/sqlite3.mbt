@@ -34,6 +34,9 @@ fn sqlite3_errmsg16_import(
 fn sqlite3_errcode_import(database : UInt64) -> Int = "moonbitlang/sqlite" "sqlite3_errcode"
 
 ///|
+fn sqlite3_changes64_import(database : UInt64) -> Int64 = "moonbitlang/sqlite" "sqlite3_changes64"
+
+///|
 fn sqlite3_close_import(database : UInt64) -> Int = "moonbitlang/sqlite" "sqlite3_close"
 
 ///|
@@ -91,10 +94,32 @@ fn sqlite3_bind_blob_import(
 fn sqlite3_step_import(statement : UInt64) -> Int = "moonbitlang/sqlite" "sqlite3_step"
 
 ///|
+fn sqlite3_reset_import(statement : UInt64) -> Int = "moonbitlang/sqlite" "sqlite3_reset"
+
+///|
+fn sqlite3_clear_bindings_import(statement : UInt64) -> Int = "moonbitlang/sqlite" "sqlite3_clear_bindings"
+
+///|
 fn sqlite3_finalize_import(statement : UInt64) -> Int = "moonbitlang/sqlite" "sqlite3_finalize"
 
 ///|
 fn sqlite3_column_count_import(statement : UInt64) -> Int = "moonbitlang/sqlite" "sqlite3_column_count"
+
+///|
+/// Return the UTF-16 content length, or `-1` when SQLite returns NULL.
+fn sqlite3_column_name16_length_import(statement : UInt64, column : Int) -> Int = "moonbitlang/sqlite" "sqlite3_column_name16_length"
+
+///|
+/// Copy the UTF-16 content and return its full length, or `-1` when SQLite
+/// returns NULL.
+#unsafe_skip_stub_check
+#borrow(output)
+fn sqlite3_column_name16_import(
+  statement : UInt64,
+  column : Int,
+  output : String,
+  capacity : Int,
+) -> Int = "moonbitlang/sqlite" "sqlite3_column_name16"
 
 ///|
 fn sqlite3_column_type_import(statement : UInt64, column : Int) -> Int = "moonbitlang/sqlite" "sqlite3_column_type"
@@ -182,6 +207,11 @@ fn sqlite3_errcode_impl(database : Sqlite3Handle) -> Int {
 }
 
 ///|
+fn sqlite3_changes64_impl(database : Sqlite3Handle) -> Int64 {
+  sqlite3_changes64_import(database.0)
+}
+
+///|
 fn sqlite3_prepare16_v2_impl(
   database : Sqlite3Handle,
   sql : String,
@@ -213,6 +243,16 @@ fn sqlite3_step_impl(statement : Sqlite3StmtHandle) -> Int {
 }
 
 ///|
+fn sqlite3_reset_impl(statement : Sqlite3StmtHandle) -> Int {
+  sqlite3_reset_import(statement.0)
+}
+
+///|
+fn sqlite3_clear_bindings_impl(statement : Sqlite3StmtHandle) -> Int {
+  sqlite3_clear_bindings_import(statement.0)
+}
+
+///|
 fn sqlite3_finalize_impl(statement : Sqlite3StmtHandle) -> Int {
   sqlite3_finalize_import(statement.0)
 }
@@ -220,6 +260,40 @@ fn sqlite3_finalize_impl(statement : Sqlite3StmtHandle) -> Int {
 ///|
 fn sqlite3_column_count_impl(statement : Sqlite3StmtHandle) -> Int {
   sqlite3_column_count_import(statement.0)
+}
+
+///|
+fn sqlite3_column_name_impl(
+  statement : Sqlite3StmtHandle,
+  index : Int,
+) -> String? {
+  let length = sqlite3_column_name16_length_import(statement.0, index)
+  if length == -1 {
+    return None
+  }
+  if length < -1 {
+    abort("sqlite3: column-name length import returned an invalid value")
+  }
+  if length == 0 {
+    return Some("")
+  }
+  let output = String::make(length, '\u0000')
+  let copied = sqlite3_column_name16_import(
+    statement.0,
+    index,
+    output,
+    output.length(),
+  )
+  if copied == -1 {
+    return None
+  }
+  if copied < -1 {
+    abort("sqlite3: column-name copy import returned an invalid value")
+  }
+  if copied != length {
+    abort("sqlite3: result column name changed while being copied")
+  }
+  Some(output)
 }
 
 ///|

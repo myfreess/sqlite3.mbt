@@ -59,6 +59,26 @@ pub fn sqlite3_column_count(statement : Sqlite3Stmt) -> Int {
 }
 
 ///|
+pub fn sqlite3_reset(statement : Sqlite3Stmt) -> Int {
+  sqlite3_reset_impl(statement.0)
+}
+
+///|
+pub fn sqlite3_clear_bindings(statement : Sqlite3Stmt) -> Int {
+  sqlite3_clear_bindings_impl(statement.0)
+}
+
+///|
+pub fn sqlite3_changes64(database : Sqlite3) -> Int64 {
+  sqlite3_changes64_impl(database.0)
+}
+
+///|
+pub fn sqlite3_column_name(statement : Sqlite3Stmt, index : Int) -> String? {
+  sqlite3_column_name_impl(statement.0, index)
+}
+
+///|
 pub fn sqlite3_bind_int(
   statement : Sqlite3Stmt,
   index : Int,

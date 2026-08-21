@@ -14,6 +14,7 @@ pub suberror SqliteError {
 
 // Types and methods
 type Connection
+pub fn Connection::changes(Self) -> Int64 raise SqliteError
 pub fn Connection::close(Self) -> Unit raise SqliteError
 pub fn Connection::open(String) -> Self raise SqliteError
 pub fn Connection::prepare(Self, String) -> Statement raise SqliteError
@@ -132,7 +133,10 @@ pub(all) enum ExtendedCode {
 type Statement
 pub fn[T : Bind] Statement::bind(Self, index~ : Int, T) -> Unit raise SqliteError
 pub fn[T : Column] Statement::column(Self, index~ : Int) -> T raise SqliteError
+pub fn Statement::column_count(Self) -> Int raise SqliteError
+pub fn Statement::column_name(Self, index~ : Int) -> String raise SqliteError
 pub fn Statement::finalize(Self) -> Unit raise SqliteError
+pub fn Statement::reset(Self, clear_bindings? : Bool) -> Unit raise SqliteError
 pub fn Statement::step(Self) -> Bool raise SqliteError
 
 pub(all) enum Value {

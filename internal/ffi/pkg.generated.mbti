@@ -18,6 +18,10 @@ pub fn sqlite3_bind_null(Sqlite3Stmt, Int) -> Int
 
 pub fn sqlite3_bind_text(Sqlite3Stmt, Int, StringView) -> Int
 
+pub fn sqlite3_changes64(Sqlite3) -> Int64
+
+pub fn sqlite3_clear_bindings(Sqlite3Stmt) -> Int
+
 pub fn sqlite3_close(Sqlite3) -> Int
 
 pub fn sqlite3_column_blob(Sqlite3, Sqlite3Stmt, Int, @ref.Ref[Int]) -> Bytes
@@ -27,6 +31,8 @@ pub fn sqlite3_column_count(Sqlite3Stmt) -> Int
 pub fn sqlite3_column_double(Sqlite3Stmt, Int) -> Double
 
 pub fn sqlite3_column_int64(Sqlite3Stmt, Int) -> Int64
+
+pub fn sqlite3_column_name(Sqlite3Stmt, Int) -> String?
 
 pub fn sqlite3_column_text(Sqlite3, Sqlite3Stmt, Int, @ref.Ref[Int]) -> String
 
@@ -43,6 +49,8 @@ pub fn sqlite3_is_null(Sqlite3) -> Bool
 pub fn sqlite3_open_v2(Bytes, Int, @ref.Ref[Int]) -> Sqlite3
 
 pub fn sqlite3_prepare16_v2(Sqlite3, String, @ref.Ref[Int], @ref.Ref[Int]) -> Sqlite3Stmt
+
+pub fn sqlite3_reset(Sqlite3Stmt) -> Int
 
 pub fn sqlite3_step(Sqlite3Stmt) -> Int
 

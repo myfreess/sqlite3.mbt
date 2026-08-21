@@ -51,10 +51,17 @@ Until these imports reach a released moonrun, build the known compatible
 revision and select it with `MOONRUN_OVERRIDE`:
 
 ```bash
-cargo +1.95.0 install --git https://github.com/moonbitlang/moon --rev ad3391f8452f8d72988e7ccc04f7cc6595ae882b --locked --root .moonrun --bin moonrun moonrun
+cargo +1.95.0 install --git https://github.com/moonbitlang/moon --rev ae7601a28c7f1bd89a0e0ae15871c272aef2c0bd --locked --root .moonrun --bin moonrun moonrun
 MOONRUN_OVERRIDE="$PWD/.moonrun/bin/moonrun" moon test --target wasm
 ```
 
 The pinned moonrun revision supports in-memory and policy-checked file-backed
-databases. It uses `libsqlite3-sys` `0.38.2`, bundling SQLite `3.53.2`. File
-access remains subject to the host runtime's filesystem policy.
+databases, statement reset and binding cleanup, affected-row counts, and
+result-column names. It uses `libsqlite3-sys` `0.38.2`, bundling SQLite
+`3.53.2`. File access remains subject to the host runtime's filesystem policy.
+
+The column-name length/copy ABI reserves `-1` for SQLite's NULL pointer, `0` for
+an explicit empty name, and positive values for UTF-16 content lengths. The
+adapter already implements this convention. Hosts predating the corresponding
+runtime change still return zero for NULL, so only those hosts cannot report
+the rare `sqlite3_column_name16` conversion allocation failure.
