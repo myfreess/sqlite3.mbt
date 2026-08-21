@@ -1,5 +1,5 @@
 ///|
-test "reset reuses a statement and clear_bindings removes old values" {
+test "reset preserves or clears bindings" {
   let conn = @sqlite3.Connection::open(":memory:")
   let stmt = conn.prepare("SELECT ?1")
   let stmt_copy = stmt
@@ -34,16 +34,45 @@ test "reset reuses a statement and clear_bindings removes old values" {
   assert_eq(rebound, 42L)
   assert_eq(stmt.step(), false)
 
-  stmt.reset()
-  stmt.clear_bindings()
+  stmt.reset(clear_bindings=true)
   assert_true(stmt.step())
   let cleared : @sqlite3.Value = stmt.column(index=0)
   assert_eq(cleared, @sqlite3.Value::Null)
   stmt.finalize()
   let reset_after_finalize = @test.expect_error(() => stmt_copy.reset())
   assert_true(reset_after_finalize is @sqlite3.SqliteError(code=Misuse, ..))
-  let clear_after_finalize = @test.expect_error(() => stmt_copy.clear_bindings())
+  let clear_after_finalize = @test.expect_error(() => {
+    stmt_copy.reset(clear_bindings=true)
+  })
   assert_true(clear_after_finalize is @sqlite3.SqliteError(code=Misuse, ..))
+  conn.close()
+}
+
+///|
+test "reset can clear bindings while abandoning an active row" {
+  let conn = @sqlite3.Connection::open(":memory:")
+  let stmt = conn.prepare("SELECT ?1")
+  let stmt_copy = stmt
+  stmt.bind(index=1, "bound text")
+  assert_true(stmt.step())
+
+  stmt_copy.reset(clear_bindings=true)
+  let error = @test.expect_error(() => {
+    let _ : String = stmt.column(index=0)
+  })
+  assert_true(
+    error
+    is @sqlite3.SqliteError(
+      code=Misuse,
+      extended=None,
+      msg="sqlite3: statement has no current row"
+    ),
+  )
+  assert_true(stmt.step())
+  let cleared : @sqlite3.Value = stmt.column(index=0)
+  assert_eq(cleared, @sqlite3.Value::Null)
+  assert_eq(stmt.step(), false)
+  stmt.finalize()
   conn.close()
 }
 
@@ -61,9 +90,14 @@ test "reset surfaces the previous execution error and still rewinds" {
   insert.bind(index=1, 1L)
   let step_error = @test.expect_error(() => ignore(insert.step()))
   assert_true(step_error is @sqlite3.SqliteError(code=Constraint, ..))
-  let reset_error = @test.expect_error(() => insert.reset())
+  let reset_error = @test.expect_error(() => insert.reset(clear_bindings=true))
   assert_true(reset_error is @sqlite3.SqliteError(code=Constraint, ..))
 
+  // reset() rewound the statement and honored clear_bindings even though it
+  // reported the previous constraint error. Re-execution therefore binds
+  // SQL NULL instead of repeating the duplicate value.
+  assert_eq(insert.step(), false)
+  insert.reset()
   insert.bind(index=1, 2L)
   assert_eq(insert.step(), false)
   insert.finalize()

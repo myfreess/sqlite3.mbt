@@ -104,27 +104,33 @@ pub fn Connection::prepare(
 ///|
 /// Reset the statement to its initial state so it can be executed again.
 ///
-/// Existing parameter bindings are preserved. The current row, if any, is
-/// invalidated even when SQLite reports an error from the previous execution.
-pub fn Statement::reset(self : Statement) -> Unit raise SqliteError {
+/// Existing parameter bindings are preserved unless `clear_bindings` is true.
+/// The current row, if any, is invalidated even when SQLite reports an error
+/// from the previous execution.
+pub fn Statement::reset(
+  self : Statement,
+  clear_bindings? : Bool = false,
+) -> Unit raise SqliteError {
   let handle = self.get_handle()
   self.has_row = false
   self.column_types = None
   let rescode = @ffi.sqlite3_reset(handle)
-  if rescode != SQLITE_OK {
-    raise self.error(rescode)
+  // sqlite3_reset() can report an error from the previous execution even
+  // though it has rewound the statement. Capture that error before clearing
+  // bindings can replace the connection's error message.
+  let reset_error = if rescode == SQLITE_OK {
+    None
+  } else {
+    Some(self.error(rescode))
   }
-}
-
-///|
-/// Set every parameter binding on the statement to SQL `NULL`.
-///
-/// This does not reset execution. Call `reset()` separately when the statement
-/// has already been stepped.
-pub fn Statement::clear_bindings(self : Statement) -> Unit raise SqliteError {
-  let rescode = @ffi.sqlite3_clear_bindings(self.get_handle())
-  if rescode != SQLITE_OK {
-    raise self.error(rescode)
+  let clear_rescode = if clear_bindings {
+    @ffi.sqlite3_clear_bindings(handle)
+  } else {
+    SQLITE_OK
+  }
+  match reset_error {
+    Some(error) => raise error
+    None => if clear_rescode != SQLITE_OK { raise self.error(clear_rescode) }
   }
 }
 
