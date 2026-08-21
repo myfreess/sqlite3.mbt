@@ -123,6 +123,32 @@ moonbit_sqlite3_bind_blob(
 
 MOONBIT_FFI_EXPORT
 moonbit_string_t
+moonbit_sqlite3_column_name(
+  sqlite3_stmt *stmt,
+  int32_t idx,
+  int32_t *available
+) {
+  /* sqlite3_column_name16() has no result-code return. In the bundled SQLite,
+   * a conversion OOM is reported only as NULL and does not update the
+   * connection error code, so expose pointer availability rather than
+   * manufacturing a SQLite result code. The MoonBit API validates idx. */
+  const uint16_t *name = (const uint16_t *)sqlite3_column_name16(stmt, idx);
+  if (!name) {
+    *available = 0;
+    return moonbit_make_string_raw(0);
+  }
+  *available = 1;
+  int32_t len = 0;
+  while (name[len] != 0) {
+    len++;
+  }
+  moonbit_string_t result = moonbit_make_string_raw(len);
+  memcpy(result, name, (size_t)len * sizeof(uint16_t));
+  return result;
+}
+
+MOONBIT_FFI_EXPORT
+moonbit_string_t
 moonbit_sqlite3_column_text(
   sqlite3 *db,
   sqlite3_stmt *stmt,

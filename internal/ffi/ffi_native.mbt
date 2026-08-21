@@ -46,6 +46,37 @@ extern "c" fn sqlite3_finalize_impl(stmt : Sqlite3StmtHandle) -> Int = "sqlite3_
 ///|
 extern "c" fn sqlite3_column_count_impl(stmt : Sqlite3StmtHandle) -> Int = "sqlite3_column_count"
 
+///|
+extern "c" fn sqlite3_reset_impl(stmt : Sqlite3StmtHandle) -> Int = "sqlite3_reset"
+
+///|
+extern "c" fn sqlite3_clear_bindings_impl(stmt : Sqlite3StmtHandle) -> Int = "sqlite3_clear_bindings"
+
+///|
+extern "c" fn sqlite3_changes64_impl(db : Sqlite3Handle) -> Int64 = "sqlite3_changes64"
+
+///|
+#borrow(available)
+extern "c" fn sqlite3_column_name_copy_impl(
+  stmt : Sqlite3StmtHandle,
+  idx : Int,
+  available : Ref[Int],
+) -> String = "moonbit_sqlite3_column_name"
+
+///|
+fn sqlite3_column_name_impl(
+  statement : Sqlite3StmtHandle,
+  index : Int,
+) -> String? {
+  let available = Ref(0)
+  let name = sqlite3_column_name_copy_impl(statement, index, available)
+  match available.val {
+    0 => None
+    1 => Some(name)
+    _ => abort("sqlite3: native column-name bridge returned an invalid state")
+  }
+}
+
 // --- Bind functions ---
 
 ///|

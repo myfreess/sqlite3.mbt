@@ -33,6 +33,9 @@ pub fn Connection::open(filename : String) -> Connection raise SqliteError {
   let rescode = Ref(SQLITE_OK)
   let db = @ffi.sqlite3_open_v2(filename, flags, rescode)
   if rescode.val == SQLITE_OK {
+    // Failed open handles are valid only for error retrieval and close. Keep
+    // them local so every handle stored by Connection is ready for database
+    // operations.
     return Connection(Ref(Some(db)))
   } else {
     let error = if @ffi.sqlite3_is_null(db) {
@@ -43,6 +46,13 @@ pub fn Connection::open(filename : String) -> Connection raise SqliteError {
     let _ = @ffi.sqlite3_close(db)
     raise error
   }
+}
+
+///|
+/// Return the number of rows changed by the most recently completed `INSERT`,
+/// `UPDATE`, or `DELETE` on this connection.
+pub fn Connection::changes(self : Connection) -> Int64 raise SqliteError {
+  @ffi.sqlite3_changes64(self.handle())
 }
 
 ///|

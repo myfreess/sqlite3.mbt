@@ -7,6 +7,9 @@ struct Statement {
 }
 
 ///|
+const SQLITE_NOMEM = 7
+
+///|
 fn Statement::get_handle(
   self : Statement,
 ) -> @ffi.Sqlite3Stmt raise SqliteError {
@@ -93,7 +96,70 @@ pub fn Connection::prepare(
     let _ = @ffi.sqlite3_finalize(out)
     raise sqlite_misuse("sqlite3: SQL contains more than one statement")
   }
+  // Only a successful, non-empty prepare reaches this point. A handle from a
+  // failed prepare is never stored in public Statement state.
   { handle: Some(out), has_row: false, column_types: None, connection: self }
+}
+
+///|
+/// Reset the statement to its initial state so it can be executed again.
+///
+/// Existing parameter bindings are preserved. The current row, if any, is
+/// invalidated even when SQLite reports an error from the previous execution.
+pub fn Statement::reset(self : Statement) -> Unit raise SqliteError {
+  let handle = self.get_handle()
+  self.has_row = false
+  self.column_types = None
+  let rescode = @ffi.sqlite3_reset(handle)
+  if rescode != SQLITE_OK {
+    raise self.error(rescode)
+  }
+}
+
+///|
+/// Set every parameter binding on the statement to SQL `NULL`.
+///
+/// This does not reset execution. Call `reset()` separately when the statement
+/// has already been stepped.
+pub fn Statement::clear_bindings(self : Statement) -> Unit raise SqliteError {
+  let rescode = @ffi.sqlite3_clear_bindings(self.get_handle())
+  if rescode != SQLITE_OK {
+    raise self.error(rescode)
+  }
+}
+
+///|
+/// Return the number of columns in the statement's result set.
+///
+/// Statements that do not return rows have zero columns.
+pub fn Statement::column_count(self : Statement) -> Int raise SqliteError {
+  @ffi.sqlite3_column_count(self.get_handle())
+}
+
+///|
+/// Return the name assigned to a result column.
+///
+/// Column indexes start at zero. An explicit SQL `AS` alias determines the
+/// name when present.
+pub fn Statement::column_name(
+  self : Statement,
+  index~ : Int,
+) -> String raise SqliteError {
+  let handle = self.get_handle()
+  let column_count = @ffi.sqlite3_column_count(handle)
+  if index < 0 || index >= column_count {
+    raise sqlite_misuse(
+      "sqlite3: column index \{index} is outside 0..<\{column_count}",
+    )
+  }
+  match @ffi.sqlite3_column_name(handle, index) {
+    Some(name) => name
+    None =>
+      raise sqlite_error(
+        SQLITE_NOMEM,
+        "sqlite3: failed to allocate result column name",
+      )
+  }
 }
 
 ///|
