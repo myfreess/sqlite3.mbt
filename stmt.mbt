@@ -13,9 +13,22 @@ const SQLITE_NOMEM = 7
 fn Statement::get_handle(
   self : Statement,
 ) -> @ffi.Sqlite3Stmt raise SqliteError {
+  let _ = self.connection.handle()
   match self.handle {
     Some(handle) => handle
     None => raise sqlite_misuse("sqlite3: statement is finalized")
+  }
+}
+
+///|
+fn Statement::apply_step_result(self : Statement, rescode : Int) -> Bool? {
+  match rescode {
+    SQLITE_DONE => Some(false)
+    SQLITE_ROW => {
+      self.has_row = true
+      Some(true)
+    }
+    _ => None
   }
 }
 
@@ -210,13 +223,9 @@ pub fn Statement::step(self : Statement) -> Bool raise SqliteError {
   self.has_row = false
   self.column_types = None
   let rescode = @ffi.sqlite3_step(handle)
-  match rescode {
-    SQLITE_DONE => false
-    SQLITE_ROW => {
-      self.has_row = true
-      true
-    }
-    _ => raise self.error(rescode)
+  match self.apply_step_result(rescode) {
+    Some(has_row) => has_row
+    None => raise self.error(rescode)
   }
 }
 
@@ -225,6 +234,7 @@ pub fn Statement::finalize(self : Statement) -> Unit raise SqliteError {
   match self.handle {
     None => ()
     Some(handle) => {
+      self.connection.ensure_no_job()
       let database = self.connection.handle()
       @ffi.sqlite3_db_mutex_enter(database)
       defer @ffi.sqlite3_db_mutex_leave(database)

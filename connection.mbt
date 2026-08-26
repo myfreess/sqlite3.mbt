@@ -1,17 +1,68 @@
 ///|
-struct Connection(Ref[@ffi.Sqlite3?])
+priv struct ConnectionState {
+  mut database : @ffi.Sqlite3?
+  mut executor : @ffi.Sqlite3Executor?
+  mut job_running : Bool
+  job_gate : @async.Mutex
+}
+
+///|
+struct Connection(Ref[ConnectionState])
+
+///|
+fn Connection::ensure_no_job(self : Connection) -> Unit raise SqliteError {
+  if self.0.val.job_running {
+    raise sqlite_misuse("sqlite3: an asynchronous operation is running")
+  }
+}
 
 ///|
 fn Connection::handle(self : Connection) -> @ffi.Sqlite3 raise SqliteError {
-  match self.0.val {
+  self.ensure_no_job()
+  match self.0.val.database {
     Some(db) => db
     None => raise sqlite_misuse("sqlite3: connection is closed")
   }
 }
 
 ///|
+fn Connection::begin_job(
+  self : Connection,
+) -> (@ffi.Sqlite3, @ffi.Sqlite3Executor) raise SqliteError {
+  let state = self.0.val
+  self.ensure_no_job()
+  match state.database {
+    Some(database) => {
+      let executor = match state.executor {
+        Some(executor) => executor
+        None => {
+          let rescode = Ref(SQLITE_OK)
+          let executor = @ffi.sqlite3_executor_create(rescode)
+          if rescode.val != SQLITE_OK {
+            raise sqlite_error(
+              rescode.val,
+              "sqlite3: failed to start the asynchronous executor",
+            )
+          }
+          state.executor = Some(executor)
+          executor
+        }
+      }
+      state.job_running = true
+      (database, executor)
+    }
+    None => raise sqlite_misuse("sqlite3: connection is closed")
+  }
+}
+
+///|
+fn Connection::finish_job(self : Connection) -> Unit {
+  self.0.val.job_running = false
+}
+
+///|
 fn Connection::error(self : Connection, raw_code : Int) -> SqliteError {
-  match self.0.val {
+  match self.0.val.database {
     Some(db) => sqlite_error(raw_code, @ffi.sqlite3_errmsg(db))
     None => sqlite_error(raw_code, "sqlite3: database connection is closed")
   }
@@ -39,7 +90,14 @@ pub fn Connection::open(filename : String) -> Connection raise SqliteError {
     // Failed open handles are valid only for error retrieval and close. Keep
     // them local so every handle stored by Connection is ready for database
     // operations.
-    return Connection(Ref(Some(db)))
+    return Connection(
+      Ref({
+        database: Some(db),
+        executor: None,
+        job_running: false,
+        job_gate: Mutex(),
+      }),
+    )
   } else {
     let error = if @ffi.sqlite3_is_null(db) {
       sqlite_error(rescode.val, "sqlite3: failed to allocate a database handle")
@@ -63,7 +121,8 @@ pub fn Connection::changes(self : Connection) -> Int64 raise SqliteError {
 
 ///|
 pub fn Connection::close(self : Connection) -> Unit raise SqliteError {
-  match self.0.val {
+  self.ensure_no_job()
+  match self.0.val.database {
     None => ()
     Some(db) => {
       // A successful close destroys the connection mutex, so close cannot use
@@ -71,7 +130,11 @@ pub fn Connection::close(self : Connection) -> Unit raise SqliteError {
       // exclude outstanding worker operations before this lifecycle step.
       let rescode = @ffi.sqlite3_close(db)
       if rescode == SQLITE_OK {
-        self.0.val = None
+        if self.0.val.executor is Some(executor) {
+          @ffi.sqlite3_executor_release(executor)
+          self.0.val.executor = None
+        }
+        self.0.val.database = None
       } else {
         raise self.error(rescode)
       }

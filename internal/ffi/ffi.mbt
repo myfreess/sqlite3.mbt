@@ -5,6 +5,25 @@ struct Sqlite3(Sqlite3Handle)
 struct Sqlite3Stmt(Sqlite3StmtHandle)
 
 ///|
+struct Sqlite3Executor(Sqlite3ExecutorHandle)
+
+///|
+struct Sqlite3StepJob {
+  handle : Sqlite3StepJobHandle
+  mut notification : @pipe.PipeRead?
+}
+
+///|
+pub fn sqlite3_executor_create(rescode : Ref[Int]) -> Sqlite3Executor {
+  Sqlite3Executor(sqlite3_executor_create_impl(rescode))
+}
+
+///|
+pub fn sqlite3_executor_release(executor : Sqlite3Executor) -> Unit {
+  sqlite3_executor_release_impl(executor.0)
+}
+
+///|
 pub fn sqlite3_open_v2(
   filename : Bytes,
   flags : Int,
@@ -58,6 +77,73 @@ pub fn sqlite3_prepare16_v2(
 ///|
 pub fn sqlite3_step(statement : Sqlite3Stmt) -> Int {
   sqlite3_step_impl(statement.0)
+}
+
+///|
+pub fn sqlite3_step_job(
+  executor : Sqlite3Executor,
+  database : Sqlite3,
+  statement : Sqlite3Stmt,
+  rescode : Ref[Int],
+) -> Sqlite3StepJob raise {
+  let (notification, notifier) = @pipe.pipe()
+  defer notifier.close()
+  {
+    handle: sqlite3_step_job_impl(
+      executor.0,
+      database.0,
+      statement.0,
+      notifier.fd(),
+      rescode,
+    ),
+    notification: Some(notification),
+  }
+}
+
+///|
+pub async fn Sqlite3StepJob::wait(self : Sqlite3StepJob) -> Unit {
+  guard !self.is_ready() else { return }
+  guard self.notification is Some(notification) else { return }
+  errdefer (while !self.is_ready() {
+    @async.sleep(1)
+  })
+  while !self.is_ready() {
+    let signal = FixedArray::make(1, b'\x00')
+    if notification.read(signal, max_len=1) == 0 {
+      while !self.is_ready() {
+        @async.sleep(1)
+      }
+    }
+  }
+}
+
+///|
+pub fn Sqlite3StepJob::is_ready(self : Sqlite3StepJob) -> Bool {
+  sqlite3_step_job_is_ready_impl(self.handle)
+}
+
+///|
+pub fn Sqlite3StepJob::rescode(self : Sqlite3StepJob) -> Int {
+  sqlite3_step_job_rescode_impl(self.handle)
+}
+
+///|
+pub fn Sqlite3StepJob::extended_rescode(self : Sqlite3StepJob) -> Int {
+  sqlite3_step_job_extended_rescode_impl(self.handle)
+}
+
+///|
+pub fn Sqlite3StepJob::message(self : Sqlite3StepJob) -> String {
+  sqlite3_step_job_message_impl(self.handle)
+}
+
+///|
+pub fn Sqlite3StepJob::release(self : Sqlite3StepJob) -> Unit {
+  if self.notification is Some(notification) {
+    notification.close()
+    self.notification = None
+  }
+  sqlite3_step_job_release_impl(self.handle)
 }
 
 ///|
