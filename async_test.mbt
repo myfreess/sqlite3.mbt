@@ -1,6 +1,6 @@
 ///|
 async fn execute(connection : @sqlite3.Connection, sql : String) -> Unit {
-  let statement = connection.prepare(sql)
+  let statement = connection.prepare_async(sql)
   defer statement.finalize()
   assert_false(statement.step_async())
 }
@@ -11,7 +11,7 @@ async test "async steps mutate independent connections concurrently" {
   @async.with_task_group() <| group => {
     for index in 0..<values.length() {
       group.spawn_bg() <| () => {
-        let connection = @sqlite3.Connection::open(":memory:")
+        let connection = @sqlite3.Connection::open_async(":memory:")
         defer connection.close()
         execute(
           connection, "CREATE TABLE entries(id INTEGER PRIMARY KEY, value INTEGER)",
@@ -19,7 +19,7 @@ async test "async steps mutate independent connections concurrently" {
         execute(connection, "INSERT INTO entries VALUES (1, 10), (2, 20)")
         execute(connection, "UPDATE entries SET value = value + 5 WHERE id = 2")
         execute(connection, "DELETE FROM entries WHERE id = 1")
-        let query = connection.prepare("SELECT value FROM entries")
+        let query = connection.prepare_async("SELECT value FROM entries")
         defer query.finalize()
         assert_true(query.step_async())
         values[index] = query.column(index=0)
@@ -28,6 +28,29 @@ async test "async steps mutate independent connections concurrently" {
     }
   }
   assert_eq(values, [25L, 25L, 25L, 25L])
+}
+
+///|
+async test "async prepare owns errors and releases rejected statements" {
+  let connection = @sqlite3.Connection::open_async(":memory:")
+  try connection.prepare_async("SELECT FROM") catch {
+    @sqlite3.SqliteError(code=Error, msg~, ..) => assert_true(msg.length() > 0)
+    error => raise error
+  } noraise {
+    _ => fail("expected invalid SQL to fail during prepare")
+  }
+  try connection.prepare_async("SELECT 1; SELECT 2") catch {
+    @sqlite3.SqliteError(code=Misuse, ..) => ()
+    error => raise error
+  } noraise {
+    _ => fail("expected a second SQL statement to be rejected")
+  }
+  let statement = connection.prepare_async("SELECT 42")
+  assert_true(statement.step_async())
+  let value : Int64 = statement.column(index=0)
+  assert_eq(value, 42L)
+  statement.finalize()
+  connection.close()
 }
 
 ///|
@@ -107,19 +130,22 @@ async test "failed close preserves the connection executor" {
 }
 
 ///|
-async test "async steps serialize statements on one connection" {
-  let connection = @sqlite3.Connection::open(":memory:")
+async test "async prepare and step serialize on one connection" {
+  let connection = @sqlite3.Connection::open_async(":memory:")
   defer connection.close()
   execute(connection, "CREATE TABLE entries(value INTEGER)")
-  let first = connection.prepare("INSERT INTO entries VALUES (1)")
-  defer first.finalize()
-  let second = connection.prepare("INSERT INTO entries VALUES (2)")
-  defer second.finalize()
   @async.with_task_group() <| group => {
-    group.spawn_bg() <| () => { assert_false(first.step_async()) }
-    group.spawn_bg() <| () => { assert_false(second.step_async()) }
+    for value in [1, 2] {
+      group.spawn_bg() <| () => {
+        let statement = connection.prepare_async(
+          "INSERT INTO entries VALUES (\{value})",
+        )
+        defer statement.finalize()
+        assert_false(statement.step_async())
+      }
+    }
   }
-  let query = connection.prepare("SELECT sum(value) FROM entries")
+  let query = connection.prepare_async("SELECT sum(value) FROM entries")
   defer query.finalize()
   assert_true(query.step_async())
   let sum : Int64 = query.column(index=0)

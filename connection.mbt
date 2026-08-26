@@ -10,6 +10,34 @@ priv struct ConnectionState {
 struct Connection(Ref[ConnectionState])
 
 ///|
+fn create_executor() -> @ffi.Sqlite3Executor raise SqliteError {
+  let rescode = Ref(SQLITE_OK)
+  let executor = @ffi.sqlite3_executor_create(rescode)
+  if rescode.val != SQLITE_OK {
+    raise sqlite_error(
+      rescode.val,
+      "sqlite3: failed to start the asynchronous executor",
+    )
+  }
+  executor
+}
+
+///|
+fn Connection::from_open_database(
+  database : @ffi.Sqlite3,
+  executor : @ffi.Sqlite3Executor?,
+) -> Connection {
+  Connection(
+    Ref({
+      database: Some(database),
+      executor,
+      job_running: false,
+      job_gate: Mutex(),
+    }),
+  )
+}
+
+///|
 fn Connection::ensure_no_job(self : Connection) -> Unit raise SqliteError {
   if self.0.val.job_running {
     raise sqlite_misuse("sqlite3: an asynchronous operation is running")
@@ -36,14 +64,7 @@ fn Connection::begin_job(
       let executor = match state.executor {
         Some(executor) => executor
         None => {
-          let rescode = Ref(SQLITE_OK)
-          let executor = @ffi.sqlite3_executor_create(rescode)
-          if rescode.val != SQLITE_OK {
-            raise sqlite_error(
-              rescode.val,
-              "sqlite3: failed to start the asynchronous executor",
-            )
-          }
+          let executor = create_executor()
           state.executor = Some(executor)
           executor
         }
@@ -87,14 +108,7 @@ pub fn Connection::open(filename : String) -> Connection raise SqliteError {
     // Failed open handles are valid only for error retrieval and close. Keep
     // them local so every handle stored by Connection is ready for database
     // operations.
-    return Connection(
-      Ref({
-        database: Some(db),
-        executor: None,
-        job_running: false,
-        job_gate: Mutex(),
-      }),
-    )
+    return Connection::from_open_database(db, None)
   } else {
     let error = if @ffi.sqlite3_is_null(db) {
       sqlite_error(rescode.val, "sqlite3: failed to allocate a database handle")

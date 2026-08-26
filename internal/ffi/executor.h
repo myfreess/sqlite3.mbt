@@ -1,6 +1,7 @@
 #ifndef MOONBIT_SQLITE3_EXECUTOR_H
 #define MOONBIT_SQLITE3_EXECUTOR_H
 
+#include <moonbit.h>
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -12,9 +13,11 @@ struct moonbit_sqlite3_executor_job {
   void (*run)(moonbit_sqlite3_executor_job_t *job);
 };
 
+MOONBIT_FFI_EXPORT
 moonbit_sqlite3_executor_t *
 moonbit_sqlite3_executor_create(int32_t *rescode);
 
+MOONBIT_FFI_EXPORT
 void
 moonbit_sqlite3_executor_release(moonbit_sqlite3_executor_t *executor);
 
