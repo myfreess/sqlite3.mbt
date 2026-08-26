@@ -13,3 +13,7 @@ keywords = [ ]
 description = "A lightweight, low-level SQLite3 binding for MoonBit, providing a thin interface over the SQLite3 C API."
 
 preferred_target = "native"
+
+import {
+  "moonbitlang/async@0.21.0",
+}

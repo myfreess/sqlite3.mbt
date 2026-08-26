@@ -13,9 +13,22 @@ const SQLITE_NOMEM = 7
 fn Statement::get_handle(
   self : Statement,
 ) -> @ffi.Sqlite3Stmt raise SqliteError {
+  let _ = self.connection.handle()
   match self.handle {
     Some(handle) => handle
     None => raise sqlite_misuse("sqlite3: statement is finalized")
+  }
+}
+
+///|
+fn Statement::apply_step_result(self : Statement, rescode : Int) -> Bool? {
+  match rescode {
+    SQLITE_DONE => Some(false)
+    SQLITE_ROW => {
+      self.has_row = true
+      Some(true)
+    }
+    _ => None
   }
 }
 
@@ -60,7 +73,7 @@ fn Statement::error(self : Statement, raw_code : Int) -> SqliteError {
 
 ///|
 fn sql_tail_is_ignorable(sql : String, start : Int) -> Bool {
-  let scanner = @lexbuf.StringScanner::{ data: sql[start:], cursor: 0 }
+  let scanner = @lexbuf.StringScanner::{ data: sql[start:], cursor: 0, }
   for ;; {
     lexscan scanner with longest {
       re"^[ \t\n\f\r;\uFEFF]+" => continue
@@ -98,7 +111,7 @@ pub fn Connection::prepare(
   }
   // Only a successful, non-empty prepare reaches this point. A handle from a
   // failed prepare is never stored in public Statement state.
-  { handle: Some(out), has_row: false, column_types: None, connection: self }
+  { handle: Some(out), has_row: false, column_types: None, connection: self, }
 }
 
 ///|
@@ -191,13 +204,9 @@ pub fn Statement::step(self : Statement) -> Bool raise SqliteError {
   self.has_row = false
   self.column_types = None
   let rescode = @ffi.sqlite3_step(handle)
-  match rescode {
-    SQLITE_DONE => false
-    SQLITE_ROW => {
-      self.has_row = true
-      true
-    }
-    _ => raise self.error(rescode)
+  match self.apply_step_result(rescode) {
+    Some(has_row) => has_row
+    None => raise self.error(rescode)
   }
 }
 
@@ -206,6 +215,7 @@ pub fn Statement::finalize(self : Statement) -> Unit raise SqliteError {
   match self.handle {
     None => ()
     Some(handle) => {
+      self.connection.ensure_no_job()
       // sqlite3_finalize consumes the statement even when it reports an error.
       self.handle = None
       self.has_row = false

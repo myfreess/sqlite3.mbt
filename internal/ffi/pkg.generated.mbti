@@ -42,6 +42,10 @@ pub fn sqlite3_errcode(Sqlite3) -> Int
 
 pub fn sqlite3_errmsg(Sqlite3) -> String
 
+pub fn sqlite3_executor_create(@ref.Ref[Int]) -> Sqlite3Executor
+
+pub fn sqlite3_executor_release(Sqlite3Executor) -> Unit
+
 pub fn sqlite3_finalize(Sqlite3Stmt) -> Int
 
 pub fn sqlite3_is_null(Sqlite3) -> Bool
@@ -54,10 +58,22 @@ pub fn sqlite3_reset(Sqlite3Stmt) -> Int
 
 pub fn sqlite3_step(Sqlite3Stmt) -> Int
 
+pub fn sqlite3_step_job(Sqlite3Executor, Sqlite3, Sqlite3Stmt, @ref.Ref[Int]) -> Sqlite3StepJob raise
+
 // Errors
 
 // Types and methods
 type Sqlite3
+
+type Sqlite3Executor
+
+type Sqlite3StepJob
+pub fn Sqlite3StepJob::extended_rescode(Self) -> Int
+pub fn Sqlite3StepJob::is_ready(Self) -> Bool
+pub fn Sqlite3StepJob::message(Self) -> String
+pub fn Sqlite3StepJob::release(Self) -> Unit
+pub fn Sqlite3StepJob::rescode(Self) -> Int
+pub async fn Sqlite3StepJob::wait(Self) -> Unit
 
 type Sqlite3Stmt
 

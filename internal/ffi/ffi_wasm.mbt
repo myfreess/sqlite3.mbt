@@ -34,6 +34,9 @@ fn sqlite3_errmsg16_import(
 fn sqlite3_errcode_import(database : UInt64) -> Int = "moonbitlang/sqlite" "sqlite3_errcode"
 
 ///|
+fn sqlite3_extended_errcode_import(database : UInt64) -> Int = "moonbitlang/sqlite" "sqlite3_extended_errcode"
+
+///|
 fn sqlite3_changes64_import(database : UInt64) -> Int64 = "moonbitlang/sqlite" "sqlite3_changes64"
 
 ///|
@@ -163,6 +166,27 @@ priv struct Sqlite3Handle(UInt64)
 priv struct Sqlite3StmtHandle(UInt64)
 
 ///|
+priv struct Sqlite3ExecutorHandle(Int)
+
+///|
+priv struct Sqlite3StepJobHandle {
+  rescode : Int
+  extended_rescode : Int
+  message : String
+}
+
+///|
+fn sqlite3_executor_create_impl(rescode : Ref[Int]) -> Sqlite3ExecutorHandle {
+  rescode.val = SQLITE_OK
+  Sqlite3ExecutorHandle(0)
+}
+
+///|
+fn sqlite3_executor_release_impl(_executor : Sqlite3ExecutorHandle) -> Unit {
+  ignore(_executor.0)
+}
+
+///|
 fn sqlite3_open_v2_impl(
   filename : Bytes,
   flags : Int,
@@ -240,6 +264,51 @@ fn sqlite3_prepare16_v2_impl(
 ///|
 fn sqlite3_step_impl(statement : Sqlite3StmtHandle) -> Int {
   sqlite3_step_import(statement.0)
+}
+
+///|
+fn sqlite3_step_job_impl(
+  _executor : Sqlite3ExecutorHandle,
+  database : Sqlite3Handle,
+  statement : Sqlite3StmtHandle,
+  notification : @types.Fd,
+  submit_rescode : Ref[Int],
+) -> Sqlite3StepJobHandle {
+  ignore(notification)
+  submit_rescode.val = SQLITE_OK
+  let rescode = sqlite3_step_import(statement.0)
+  let extended_rescode = sqlite3_extended_errcode_import(database.0)
+  let message = if rescode == 100 || rescode == 101 {
+    ""
+  } else {
+    sqlite3_errmsg_impl(database)
+  }
+  { rescode, extended_rescode, message, }
+}
+
+///|
+fn sqlite3_step_job_is_ready_impl(_job : Sqlite3StepJobHandle) -> Bool {
+  true
+}
+
+///|
+fn sqlite3_step_job_rescode_impl(job : Sqlite3StepJobHandle) -> Int {
+  job.rescode
+}
+
+///|
+fn sqlite3_step_job_extended_rescode_impl(job : Sqlite3StepJobHandle) -> Int {
+  job.extended_rescode
+}
+
+///|
+fn sqlite3_step_job_message_impl(job : Sqlite3StepJobHandle) -> String {
+  job.message
+}
+
+///|
+fn sqlite3_step_job_release_impl(_job : Sqlite3StepJobHandle) -> Unit {
+
 }
 
 ///|
