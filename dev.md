@@ -47,6 +47,10 @@ producing jobs transfer successful handles to MoonBit only after the public API
 has validated the complete result; releasing an unclaimed job closes or
 finalizes its result.
 
+Synchronous calls bypass the executor, but wait for its already-submitted job
+to finish before entering SQLite. This keeps each synchronous call and its
+error lookup together without creating an executor for sync-only connections.
+
 ## Wasm FFI adapter
 
 The Wasm adapter targets moonrun's `moonbitlang/sqlite` import ABI. Native

@@ -46,8 +46,11 @@ fn Connection::ensure_no_job(self : Connection) -> Unit raise SqliteError {
 
 ///|
 fn Connection::handle(self : Connection) -> @ffi.Sqlite3 raise SqliteError {
-  self.ensure_no_job()
-  match self.0.val.database {
+  let state = self.0.val
+  if state.job_running && state.executor is Some(executor) {
+    @ffi.sqlite3_executor_wait_idle(executor)
+  }
+  match state.database {
     Some(db) => db
     None => raise sqlite_misuse("sqlite3: connection is closed")
   }

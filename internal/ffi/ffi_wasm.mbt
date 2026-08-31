@@ -190,6 +190,11 @@ fn sqlite3_executor_release_impl(_executor : Sqlite3ExecutorHandle) -> Unit {
 }
 
 ///|
+fn sqlite3_executor_wait_idle_impl(_executor : Sqlite3ExecutorHandle) -> Unit {
+  ignore(_executor.0)
+}
+
+///|
 fn sqlite3_open_v2_impl(
   filename : Bytes,
   flags : Int,

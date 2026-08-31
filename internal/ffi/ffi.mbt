@@ -33,6 +33,11 @@ pub fn sqlite3_executor_release(executor : Sqlite3Executor) -> Unit {
 }
 
 ///|
+pub fn sqlite3_executor_wait_idle(executor : Sqlite3Executor) -> Unit {
+  sqlite3_executor_wait_idle_impl(executor.0)
+}
+
+///|
 pub fn sqlite3_open_v2(
   filename : Bytes,
   flags : Int,

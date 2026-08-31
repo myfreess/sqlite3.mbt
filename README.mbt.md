@@ -232,7 +232,7 @@ domain guarantees that the value fits. Request `Value` when distinguishing
 ## Constraints and Notes
 
 - This is a manual resource management API. Every `Statement` must be explicitly `finalize()`d, and every `Connection` must be explicitly `close()`d. Dropping these values does not release SQLite resources on any backend.
-- Native asynchronous operations use one lazily created worker per connection and serialize access to that connection. Different connections can run concurrently. Wasm hosts may complete the same APIs synchronously.
+- Native asynchronous operations use one lazily created worker per connection and serialize access to that connection. A synchronous operation waits for already-submitted work, while the statement currently being stepped asynchronously rejects synchronous use. Different connections can run concurrently. Wasm hosts may complete the same APIs synchronously.
 - The Wasm backend requires a runtime that provides the `moonbitlang/sqlite` imports. Filesystem access and SQL policy are enforced by the host runtime.
 - The bundled native SQLite `3.49.1` build and the pinned moonrun SQLite `3.53.2` build both use SQLite's automatic reset behavior: calling `step()` again after it returns `false` reruns the statement with its existing bindings. Call `reset()` explicitly to rewind before rebinding; pass `clear_bindings=true` when old parameter values must not be reused.
 - `Connection::prepare` and `Connection::prepare_async` accept exactly one SQL statement. Empty input, comment-only input, and additional statements after the first one raise an error with `code=Misuse`; trailing whitespace, comments, and empty semicolons are allowed.

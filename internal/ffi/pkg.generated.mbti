@@ -46,6 +46,8 @@ pub fn sqlite3_executor_create(@ref.Ref[Int]) -> Sqlite3Executor
 
 pub fn sqlite3_executor_release(Sqlite3Executor) -> Unit
 
+pub fn sqlite3_executor_wait_idle(Sqlite3Executor) -> Unit
+
 pub fn sqlite3_finalize(Sqlite3Stmt) -> Int
 
 pub fn sqlite3_is_null(Sqlite3) -> Bool

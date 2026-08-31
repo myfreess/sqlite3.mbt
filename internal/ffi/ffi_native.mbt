@@ -26,6 +26,11 @@ extern "c" fn sqlite3_executor_release_impl(
 ) -> Unit = "moonbit_sqlite3_executor_release"
 
 ///|
+extern "c" fn sqlite3_executor_wait_idle_impl(
+  executor : Sqlite3ExecutorHandle,
+) -> Unit = "moonbit_sqlite3_executor_wait_idle"
+
+///|
 #borrow(filename, rescode)
 extern "c" fn sqlite3_open_v2_impl(
   filename : Bytes,
