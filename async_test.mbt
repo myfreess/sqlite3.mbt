@@ -6,6 +6,23 @@ async fn execute(connection : @sqlite3.Connection, sql : String) -> Unit {
 }
 
 ///|
+#cfg(target="native")
+fn prepare_slow_sum(
+  connection : @sqlite3.Connection,
+) -> @sqlite3.Statement raise @sqlite3.SqliteError {
+  connection.prepare(
+    (
+      #|WITH RECURSIVE counter(value) AS (
+      #|  VALUES(1)
+      #|  UNION ALL
+      #|  SELECT value + 1 FROM counter WHERE value < 1000000
+      #|)
+      #|SELECT sum(value) FROM counter
+    ),
+  )
+}
+
+///|
 async test "async steps mutate independent connections concurrently" {
   let values = Array::make(4, 0L)
   @async.with_task_group() <| group => {
@@ -58,17 +75,10 @@ async test "async prepare owns errors and releases rejected statements" {
 async test "async step yields while native SQLite is running" {
   let connection = @sqlite3.Connection::open(":memory:")
   defer connection.close()
-  let statement = connection.prepare(
-    (
-      #|WITH RECURSIVE counter(value) AS (
-      #|  VALUES(1)
-      #|  UNION ALL
-      #|  SELECT value + 1 FROM counter WHERE value < 1000000
-      #|)
-      #|SELECT sum(value) FROM counter
-    ),
-  )
+  let statement = prepare_slow_sum(connection)
   defer statement.finalize()
+  let sibling_statement = connection.prepare("SELECT 42")
+  defer sibling_statement.finalize()
   let started = @async.Semaphore(1, initial_value=0)
   let sibling_ran = Ref(false)
   let yielded = Ref(false)
@@ -79,7 +89,12 @@ async test "async step yields while native SQLite is running" {
       yielded.val = sibling_ran.val
     }
     started.acquire()
-    group.spawn_bg() <| () => { sibling_ran.val = true }
+    group.spawn_bg() <| () => {
+      assert_true(sibling_statement.step())
+      let value : Int64 = sibling_statement.column(index=0)
+      assert_eq(value, 42L)
+      sibling_ran.val = true
+    }
   }
   assert_true(yielded.val)
   let sum : Int64 = statement.column(index=0)
@@ -88,19 +103,42 @@ async test "async step yields while native SQLite is running" {
 
 ///|
 #cfg(target="native")
+async test "async step excludes synchronous use of the same statement" {
+  let connection = @sqlite3.Connection::open(":memory:")
+  defer connection.close()
+  let statement = prepare_slow_sum(connection)
+  defer statement.finalize()
+  let started = @async.Semaphore(1, initial_value=0)
+  @async.with_task_group() <| group => {
+    group.spawn_bg() <| () => {
+      started.release()
+      assert_true(statement.step_async())
+    }
+    started.acquire()
+    try statement.reset() catch {
+      SqliteError(code=Misuse, ..) => ()
+      error => raise error
+    } noraise {
+      _ => fail("expected the in-flight statement to reject reset")
+    }
+    try connection.close() catch {
+      SqliteError(code=Misuse, ..) => ()
+      error => raise error
+    } noraise {
+      _ => fail("expected the in-flight step to keep its connection open")
+    }
+  }
+  let sum : Int64 = statement.column(index=0)
+  assert_eq(sum, 500000500000L)
+  statement.reset()
+}
+
+///|
+#cfg(target="native")
 async test "cancelling async step leaves its connection reusable" {
   let connection = @sqlite3.Connection::open(":memory:")
   defer connection.close()
-  let statement = connection.prepare(
-    (
-      #|WITH RECURSIVE counter(value) AS (
-      #|  VALUES(1)
-      #|  UNION ALL
-      #|  SELECT value + 1 FROM counter WHERE value < 1000000
-      #|)
-      #|SELECT sum(value) FROM counter
-    ),
-  )
+  let statement = prepare_slow_sum(connection)
   try @async.with_timeout(1, () => statement.step_async()) catch {
     @async.TimeoutError => ()
     error => raise error

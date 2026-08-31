@@ -102,6 +102,7 @@ pub async fn Connection::prepare_async(
   }
   {
     handle: Some(statement),
+    step_in_flight: false,
     has_row: false,
     column_types: None,
     connection: self,
@@ -115,8 +116,9 @@ pub async fn Connection::prepare_async(
 /// connections may run concurrently on their respective native workers. A
 /// wasm host may complete the operation synchronously.
 ///
-/// Synchronous operations on the connection are rejected while its
-/// asynchronous step is running.
+/// Synchronous operations on other statements may run while this step is in
+/// flight, but can block behind SQLite's serialized connection access. The
+/// statement being stepped rejects synchronous use until the step completes.
 ///
 /// Cancellation waits for an in-flight SQLite step to finish before returning
 /// the connection and statement to the caller.
@@ -126,6 +128,10 @@ pub async fn Statement::step_async(self : Statement) -> Bool {
   defer connection.0.val.job_gate.release()
   let result = @async.protect_from_cancel() <| () => {
     let statement = self.get_handle()
+    self.step_in_flight = true
+    defer {
+      self.step_in_flight = false
+    }
     let (database, executor) = connection.begin_job()
     defer connection.finish_job()
     self.has_row = false
