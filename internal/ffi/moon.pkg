@@ -1,7 +1,21 @@
 supported_targets = "native+wasm"
 
+import {
+  "moonbitlang/async",
+  "moonbitlang/async/pipe",
+  "moonbitlang/async/types",
+}
+
 options(
-  "native-stub": [ "stub.c", "sqlite3.c" ],
+  "native-stub": [
+    "stub.c",
+    "executor.c",
+    "job.c",
+    "open_job.c",
+    "prepare_job.c",
+    "step_job.c",
+    "sqlite3.c",
+  ],
   targets: {
     "ffi.mbt": [ "native", "wasm" ],
     "ffi_native.mbt": [ "native" ],

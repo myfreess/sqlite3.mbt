@@ -7,12 +7,74 @@ priv type Sqlite3Handle
 priv type Sqlite3StmtHandle
 
 ///|
+#external
+priv type Sqlite3MutexHandle
+
+///|
+#external
+priv type Sqlite3ExecutorHandle
+
+///|
+#external
+priv type Sqlite3JobHandle
+
+///|
+#borrow(rescode)
+extern "c" fn sqlite3_executor_create_impl(
+  rescode : Ref[Int],
+) -> Sqlite3ExecutorHandle = "moonbit_sqlite3_executor_create"
+
+///|
+extern "c" fn sqlite3_executor_release_impl(
+  executor : Sqlite3ExecutorHandle,
+) -> Unit = "moonbit_sqlite3_executor_release"
+
+///|
+extern "c" fn sqlite3_db_mutex_impl(
+  database : Sqlite3Handle,
+) -> Sqlite3MutexHandle = "sqlite3_db_mutex"
+
+///|
+extern "c" fn sqlite3_mutex_enter_raw(mutex : Sqlite3MutexHandle) -> Unit = "sqlite3_mutex_enter"
+
+///|
+extern "c" fn sqlite3_mutex_leave_raw(mutex : Sqlite3MutexHandle) -> Unit = "sqlite3_mutex_leave"
+
+///|
+fn sqlite3_db_mutex_enter_impl(database : Sqlite3Handle) -> Unit {
+  sqlite3_mutex_enter_raw(sqlite3_db_mutex_impl(database))
+}
+
+///|
+fn sqlite3_db_mutex_leave_impl(database : Sqlite3Handle) -> Unit {
+  sqlite3_mutex_leave_raw(sqlite3_db_mutex_impl(database))
+}
+
+///|
 #borrow(filename, rescode)
 extern "c" fn sqlite3_open_v2_impl(
   filename : Bytes,
   flags : Int,
   rescode : Ref[Int],
 ) -> Sqlite3Handle = "moonbit_sqlite3_open_v2"
+
+///|
+#borrow(filename, rescode)
+extern "c" fn sqlite3_open_job_impl(
+  executor : Sqlite3ExecutorHandle,
+  filename : Bytes,
+  flags : Int,
+  notification : @types.Fd,
+  rescode : Ref[Int],
+) -> Sqlite3JobHandle = "moonbit_sqlite3_open_job"
+
+///|
+extern "c" fn sqlite3_open_job_database_impl(
+  job : Sqlite3JobHandle,
+) -> Sqlite3Handle = "moonbit_sqlite3_open_job_database"
+
+///|
+extern "c" fn sqlite3_open_job_release_impl(job : Sqlite3JobHandle) -> Unit = "moonbit_sqlite3_open_job_release"
 
 ///|
 extern "c" fn sqlite3_close_impl(db : Sqlite3Handle) -> Int = "sqlite3_close"
@@ -38,7 +100,55 @@ extern "c" fn sqlite3_prepare16_v2_impl(
 ) -> Sqlite3StmtHandle = "moonbit_sqlite3_prepare16_v2"
 
 ///|
+#borrow(sql, rescode)
+extern "c" fn sqlite3_prepare_job_impl(
+  executor : Sqlite3ExecutorHandle,
+  db : Sqlite3Handle,
+  sql : String,
+  notification : @types.Fd,
+  rescode : Ref[Int],
+) -> Sqlite3JobHandle = "moonbit_sqlite3_prepare_job"
+
+///|
+extern "c" fn sqlite3_prepare_job_statement_impl(
+  job : Sqlite3JobHandle,
+) -> Sqlite3StmtHandle = "moonbit_sqlite3_prepare_job_statement"
+
+///|
+extern "c" fn sqlite3_prepare_job_tail_offset_impl(
+  job : Sqlite3JobHandle,
+) -> Int = "moonbit_sqlite3_prepare_job_tail_offset"
+
+///|
+extern "c" fn sqlite3_prepare_job_release_impl(job : Sqlite3JobHandle) -> Unit = "moonbit_sqlite3_prepare_job_release"
+
+///|
 extern "c" fn sqlite3_step_impl(stmt : Sqlite3StmtHandle) -> Int = "sqlite3_step"
+
+///|
+#borrow(rescode)
+extern "c" fn sqlite3_step_job_impl(
+  executor : Sqlite3ExecutorHandle,
+  db : Sqlite3Handle,
+  stmt : Sqlite3StmtHandle,
+  notification : @types.Fd,
+  rescode : Ref[Int],
+) -> Sqlite3JobHandle = "moonbit_sqlite3_step_job"
+
+///|
+extern "c" fn sqlite3_job_is_ready_impl(job : Sqlite3JobHandle) -> Bool = "moonbit_sqlite3_job_is_ready"
+
+///|
+extern "c" fn sqlite3_job_rescode_impl(job : Sqlite3JobHandle) -> Int = "moonbit_sqlite3_job_rescode"
+
+///|
+extern "c" fn sqlite3_job_extended_rescode_impl(job : Sqlite3JobHandle) -> Int = "moonbit_sqlite3_job_extended_rescode"
+
+///|
+extern "c" fn sqlite3_job_message_impl(job : Sqlite3JobHandle) -> String = "moonbit_sqlite3_job_message"
+
+///|
+extern "c" fn sqlite3_step_job_release_impl(job : Sqlite3JobHandle) -> Unit = "moonbit_sqlite3_step_job_release"
 
 ///|
 extern "c" fn sqlite3_finalize_impl(stmt : Sqlite3StmtHandle) -> Int = "sqlite3_finalize"

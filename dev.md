@@ -39,6 +39,22 @@ connection already reports `SQLITE_NOMEM`, SQLite provides no public API that
 can distinguish a simultaneous second conversion failure from that older
 state; the adapters avoid the unsafe false positive.
 
+Native asynchronous operations use a generic per-connection executor and job
+envelope. The envelope owns queue linkage, completion notification, and an
+immutable diagnostic snapshot. Each operation owns its copied inputs, typed
+result, blocking SQLite call, and cleanup in a separate C file. Resource-
+producing jobs transfer successful handles to MoonBit only after the public API
+has validated the complete result; releasing an unclaimed job closes or
+finalizes its result.
+
+Connections are opened with `SQLITE_OPEN_FULLMUTEX`. Synchronous calls bypass
+the executor and bracket each logical operation and its error lookup with
+SQLite's recursive connection mutex; native jobs use the same mutex while
+capturing their result. The MoonBit connection state counts outstanding jobs,
+so `close` can reject destruction without moving lifecycle policy into the C
+executor. Statements similarly reject synchronous use while their asynchronous
+step is outstanding. Sync-only connections never create an executor.
+
 ## Wasm FFI adapter
 
 The Wasm adapter targets moonrun's `moonbitlang/sqlite` import ABI. Native
