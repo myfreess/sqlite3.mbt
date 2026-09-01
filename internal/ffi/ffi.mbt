@@ -33,8 +33,13 @@ pub fn sqlite3_executor_release(executor : Sqlite3Executor) -> Unit {
 }
 
 ///|
-pub fn sqlite3_executor_wait_idle(executor : Sqlite3Executor) -> Unit {
-  sqlite3_executor_wait_idle_impl(executor.0)
+pub fn sqlite3_db_mutex_enter(database : Sqlite3) -> Unit {
+  sqlite3_db_mutex_enter_impl(database.0)
+}
+
+///|
+pub fn sqlite3_db_mutex_leave(database : Sqlite3) -> Unit {
+  sqlite3_db_mutex_leave_impl(database.0)
 }
 
 ///|

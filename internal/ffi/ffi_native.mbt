@@ -8,6 +8,10 @@ priv type Sqlite3StmtHandle
 
 ///|
 #external
+priv type Sqlite3MutexHandle
+
+///|
+#external
 priv type Sqlite3ExecutorHandle
 
 ///|
@@ -26,9 +30,25 @@ extern "c" fn sqlite3_executor_release_impl(
 ) -> Unit = "moonbit_sqlite3_executor_release"
 
 ///|
-extern "c" fn sqlite3_executor_wait_idle_impl(
-  executor : Sqlite3ExecutorHandle,
-) -> Unit = "moonbit_sqlite3_executor_wait_idle"
+extern "c" fn sqlite3_db_mutex_impl(
+  database : Sqlite3Handle,
+) -> Sqlite3MutexHandle = "sqlite3_db_mutex"
+
+///|
+extern "c" fn sqlite3_mutex_enter_raw(mutex : Sqlite3MutexHandle) -> Unit = "sqlite3_mutex_enter"
+
+///|
+extern "c" fn sqlite3_mutex_leave_raw(mutex : Sqlite3MutexHandle) -> Unit = "sqlite3_mutex_leave"
+
+///|
+fn sqlite3_db_mutex_enter_impl(database : Sqlite3Handle) -> Unit {
+  sqlite3_mutex_enter_raw(sqlite3_db_mutex_impl(database))
+}
+
+///|
+fn sqlite3_db_mutex_leave_impl(database : Sqlite3Handle) -> Unit {
+  sqlite3_mutex_leave_raw(sqlite3_db_mutex_impl(database))
+}
 
 ///|
 #borrow(filename, rescode)

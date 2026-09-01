@@ -106,6 +106,8 @@ pub fn Connection::prepare(
     raise sqlite_misuse("sqlite3: SQL contains a NUL code unit")
   }
   let db = self.handle()
+  @ffi.sqlite3_db_mutex_enter(db)
+  defer @ffi.sqlite3_db_mutex_leave(db)
   let tail_offset = Ref(-1)
   let rescode = Ref(SQLITE_OK)
   let out = @ffi.sqlite3_prepare16_v2(db, stmt, tail_offset, rescode)
@@ -142,6 +144,9 @@ pub fn Statement::reset(
   clear_bindings? : Bool = false,
 ) -> Unit raise SqliteError {
   let handle = self.get_handle()
+  let database = self.connection.handle()
+  @ffi.sqlite3_db_mutex_enter(database)
+  defer @ffi.sqlite3_db_mutex_leave(database)
   self.has_row = false
   self.column_types = None
   let rescode = @ffi.sqlite3_reset(handle)
@@ -204,6 +209,10 @@ pub fn[T : Bind] Statement::bind(
   index~ : Int,
   val : T,
 ) -> Unit raise SqliteError {
+  let _ = self.get_handle()
+  let database = self.connection.handle()
+  @ffi.sqlite3_db_mutex_enter(database)
+  defer @ffi.sqlite3_db_mutex_leave(database)
   T::bind(self, index, val)
 }
 
@@ -212,12 +221,19 @@ pub fn[T : Column] Statement::column(
   self : Statement,
   index~ : Int,
 ) -> T raise SqliteError {
+  let _ = self.get_handle()
+  let database = self.connection.handle()
+  @ffi.sqlite3_db_mutex_enter(database)
+  defer @ffi.sqlite3_db_mutex_leave(database)
   T::column(self, index)
 }
 
 ///|
 pub fn Statement::step(self : Statement) -> Bool raise SqliteError {
   let handle = self.get_handle()
+  let database = self.connection.handle()
+  @ffi.sqlite3_db_mutex_enter(database)
+  defer @ffi.sqlite3_db_mutex_leave(database)
   self.has_row = false
   self.column_types = None
   let rescode = @ffi.sqlite3_step(handle)
@@ -233,7 +249,9 @@ pub fn Statement::finalize(self : Statement) -> Unit raise SqliteError {
   match self.handle {
     None => ()
     Some(handle) => {
-      let _ = self.connection.handle()
+      let database = self.connection.handle()
+      @ffi.sqlite3_db_mutex_enter(database)
+      defer @ffi.sqlite3_db_mutex_leave(database)
       // sqlite3_finalize consumes the statement even when it reports an error.
       self.handle = None
       self.has_row = false

@@ -21,10 +21,6 @@ MOONBIT_FFI_EXPORT
 void
 moonbit_sqlite3_executor_release(moonbit_sqlite3_executor_t *executor);
 
-MOONBIT_FFI_EXPORT
-void
-moonbit_sqlite3_executor_wait_idle(moonbit_sqlite3_executor_t *executor);
-
 bool
 moonbit_sqlite3_executor_submit(
   moonbit_sqlite3_executor_t *executor,

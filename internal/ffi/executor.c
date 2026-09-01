@@ -13,7 +13,6 @@
 struct moonbit_sqlite3_executor {
   moonbit_sqlite3_executor_job_t *head;
   moonbit_sqlite3_executor_job_t *tail;
-  bool running;
   bool stopping;
 #ifdef _WIN32
   CRITICAL_SECTION mutex;
@@ -51,7 +50,7 @@ moonbit_sqlite3_executor_wait(moonbit_sqlite3_executor_t *executor) {
 
 static void
 moonbit_sqlite3_executor_wake(moonbit_sqlite3_executor_t *executor) {
-  WakeAllConditionVariable(&executor->condition);
+  WakeConditionVariable(&executor->condition);
 }
 
 #else
@@ -75,7 +74,7 @@ moonbit_sqlite3_executor_wait(moonbit_sqlite3_executor_t *executor) {
 
 static void
 moonbit_sqlite3_executor_wake(moonbit_sqlite3_executor_t *executor) {
-  pthread_cond_broadcast(&executor->condition);
+  pthread_cond_signal(&executor->condition);
 }
 
 #endif
@@ -93,7 +92,6 @@ moonbit_sqlite3_executor_take(moonbit_sqlite3_executor_t *executor) {
       executor->tail = NULL;
     }
     job->next = NULL;
-    executor->running = true;
   }
   moonbit_sqlite3_executor_unlock(executor);
   return job;
@@ -112,10 +110,6 @@ moonbit_sqlite3_worker(void *data) {
        job;
        job = moonbit_sqlite3_executor_take(executor)) {
     job->run(job);
-    moonbit_sqlite3_executor_lock(executor);
-    executor->running = false;
-    moonbit_sqlite3_executor_wake(executor);
-    moonbit_sqlite3_executor_unlock(executor);
   }
 #ifdef _WIN32
   return 0;
@@ -199,19 +193,6 @@ moonbit_sqlite3_executor_release(moonbit_sqlite3_executor_t *executor) {
   pthread_mutex_destroy(&executor->mutex);
 #endif
   free(executor);
-}
-
-MOONBIT_FFI_EXPORT
-void
-moonbit_sqlite3_executor_wait_idle(moonbit_sqlite3_executor_t *executor) {
-  if (!executor) {
-    return;
-  }
-  moonbit_sqlite3_executor_lock(executor);
-  while (executor->running || executor->head) {
-    moonbit_sqlite3_executor_wait(executor);
-  }
-  moonbit_sqlite3_executor_unlock(executor);
 }
 
 bool

@@ -47,9 +47,13 @@ producing jobs transfer successful handles to MoonBit only after the public API
 has validated the complete result; releasing an unclaimed job closes or
 finalizes its result.
 
-Synchronous calls bypass the executor, but wait for its already-submitted job
-to finish before entering SQLite. This keeps each synchronous call and its
-error lookup together without creating an executor for sync-only connections.
+Connections are opened with `SQLITE_OPEN_FULLMUTEX`. Synchronous calls bypass
+the executor and bracket each logical operation and its error lookup with
+SQLite's recursive connection mutex; native jobs use the same mutex while
+capturing their result. The MoonBit connection state counts outstanding jobs,
+so `close` can reject destruction without moving lifecycle policy into the C
+executor. Statements similarly reject synchronous use while their asynchronous
+step is outstanding. Sync-only connections never create an executor.
 
 ## Wasm FFI adapter
 

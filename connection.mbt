@@ -2,8 +2,7 @@
 priv struct ConnectionState {
   mut database : @ffi.Sqlite3?
   mut executor : @ffi.Sqlite3Executor?
-  mut job_running : Bool
-  job_gate : @async.Mutex
+  mut jobs_in_flight : Int
 }
 
 ///|
@@ -27,30 +26,19 @@ fn Connection::from_open_database(
   database : @ffi.Sqlite3,
   executor : @ffi.Sqlite3Executor?,
 ) -> Connection {
-  Connection(
-    Ref({
-      database: Some(database),
-      executor,
-      job_running: false,
-      job_gate: Mutex(),
-    }),
-  )
+  Connection(Ref({ database: Some(database), executor, jobs_in_flight: 0, }))
 }
 
 ///|
-fn Connection::ensure_no_job(self : Connection) -> Unit raise SqliteError {
-  if self.0.val.job_running {
-    raise sqlite_misuse("sqlite3: an asynchronous operation is running")
+fn Connection::ensure_no_jobs(self : Connection) -> Unit raise SqliteError {
+  if self.0.val.jobs_in_flight != 0 {
+    raise sqlite_misuse("sqlite3: asynchronous operations are running")
   }
 }
 
 ///|
 fn Connection::handle(self : Connection) -> @ffi.Sqlite3 raise SqliteError {
-  let state = self.0.val
-  if state.job_running && state.executor is Some(executor) {
-    @ffi.sqlite3_executor_wait_idle(executor)
-  }
-  match state.database {
+  match self.0.val.database {
     Some(db) => db
     None => raise sqlite_misuse("sqlite3: connection is closed")
   }
@@ -61,7 +49,6 @@ fn Connection::begin_job(
   self : Connection,
 ) -> (@ffi.Sqlite3, @ffi.Sqlite3Executor) raise SqliteError {
   let state = self.0.val
-  self.ensure_no_job()
   match state.database {
     Some(database) => {
       let executor = match state.executor {
@@ -72,7 +59,7 @@ fn Connection::begin_job(
           executor
         }
       }
-      state.job_running = true
+      state.jobs_in_flight += 1
       (database, executor)
     }
     None => raise sqlite_misuse("sqlite3: connection is closed")
@@ -81,7 +68,7 @@ fn Connection::begin_job(
 
 ///|
 fn Connection::finish_job(self : Connection) -> Unit {
-  self.0.val.job_running = false
+  self.0.val.jobs_in_flight -= 1
 }
 
 ///|
@@ -99,12 +86,15 @@ const SQLITE_OPEN_READWRITE : Int = 0x00000002
 const SQLITE_OPEN_CREATE : Int = 0x00000004
 
 ///|
+const SQLITE_OPEN_FULLMUTEX : Int = 0x00010000
+
+///|
 pub fn Connection::open(filename : String) -> Connection raise SqliteError {
   if filename.contains_code_unit(0x0000) {
     raise sqlite_misuse("sqlite3: filename contains a NUL code unit")
   }
   let filename = @utf8.encode(filename)
-  let flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE
+  let flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX
   let rescode = Ref(SQLITE_OK)
   let db = @ffi.sqlite3_open_v2(filename, flags, rescode)
   if rescode.val == SQLITE_OK {
@@ -132,7 +122,7 @@ pub fn Connection::changes(self : Connection) -> Int64 raise SqliteError {
 
 ///|
 pub fn Connection::close(self : Connection) -> Unit raise SqliteError {
-  self.ensure_no_job()
+  self.ensure_no_jobs()
   match self.0.val.database {
     None => ()
     Some(db) => {
