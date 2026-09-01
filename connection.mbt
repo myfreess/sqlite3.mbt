@@ -24,12 +24,15 @@ const SQLITE_OPEN_READWRITE : Int = 0x00000002
 const SQLITE_OPEN_CREATE : Int = 0x00000004
 
 ///|
+const SQLITE_OPEN_FULLMUTEX : Int = 0x00010000
+
+///|
 pub fn Connection::open(filename : String) -> Connection raise SqliteError {
   if filename.contains_code_unit(0x0000) {
     raise sqlite_misuse("sqlite3: filename contains a NUL code unit")
   }
   let filename = @utf8.encode(filename)
-  let flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE
+  let flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX
   let rescode = Ref(SQLITE_OK)
   let db = @ffi.sqlite3_open_v2(filename, flags, rescode)
   if rescode.val == SQLITE_OK {
@@ -60,6 +63,9 @@ pub fn Connection::close(self : Connection) -> Unit raise SqliteError {
   match self.0.val {
     None => ()
     Some(db) => {
+      // A successful close destroys the connection mutex, so close cannot use
+      // the deferred unlock pattern used by statement operations. Callers must
+      // exclude outstanding worker operations before this lifecycle step.
       let rescode = @ffi.sqlite3_close(db)
       if rescode == SQLITE_OK {
         self.0.val = None

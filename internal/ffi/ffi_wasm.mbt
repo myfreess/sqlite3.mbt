@@ -163,6 +163,16 @@ priv struct Sqlite3Handle(UInt64)
 priv struct Sqlite3StmtHandle(UInt64)
 
 ///|
+fn sqlite3_db_mutex_enter_impl(_database : Sqlite3Handle) -> Unit {
+  ignore(_database.0)
+}
+
+///|
+fn sqlite3_db_mutex_leave_impl(_database : Sqlite3Handle) -> Unit {
+  ignore(_database.0)
+}
+
+///|
 fn sqlite3_open_v2_impl(
   filename : Bytes,
   flags : Int,
