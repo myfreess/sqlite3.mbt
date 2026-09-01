@@ -12,7 +12,9 @@ pub async fn Connection::open_async(filename : String) -> Connection {
   let mut executor_owned = true
   defer (if executor_owned { @ffi.sqlite3_executor_release(executor) })
   let database = @async.protect_from_cancel() <| () => {
-    let flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE
+    let flags = SQLITE_OPEN_READWRITE |
+      SQLITE_OPEN_CREATE |
+      SQLITE_OPEN_FULLMUTEX
     let submit_rescode = Ref(SQLITE_OK)
     let job = @ffi.sqlite3_open_job(
       executor,
@@ -52,7 +54,7 @@ pub async fn Connection::open_async(filename : String) -> Connection {
 ///|
 /// Prepare one SQL statement without blocking the MoonBit event loop.
 ///
-/// Operations on the same connection are serialized. A wasm host may complete
+/// Native jobs for one connection share its worker. A wasm host may complete
 /// the operation synchronously. Cancellation waits for an in-flight prepare
 /// and finalizes its result before returning control to the caller.
 pub async fn Connection::prepare_async(
@@ -62,8 +64,6 @@ pub async fn Connection::prepare_async(
   if sql.contains_code_unit(0x0000) {
     raise sqlite_misuse("sqlite3: SQL contains a NUL code unit")
   }
-  self.0.val.job_gate.acquire()
-  defer self.0.val.job_gate.release()
   let statement = @async.protect_from_cancel() <| () => {
     let (database, executor) = self.begin_job()
     defer self.finish_job()
@@ -112,9 +112,9 @@ pub async fn Connection::prepare_async(
 ///|
 /// Execute one step without blocking the MoonBit event loop.
 ///
-/// Operations on the same connection are serialized. Operations on different
-/// connections may run concurrently on their respective native workers. A
-/// wasm host may complete the operation synchronously.
+/// Native jobs for one connection share its worker. Operations on different
+/// connections may run concurrently on their respective workers. A wasm host
+/// may complete the operation synchronously.
 ///
 /// Synchronous operations on other statements may run while this step is in
 /// flight, but can block behind SQLite's serialized connection access. The
@@ -124,8 +124,6 @@ pub async fn Connection::prepare_async(
 /// the connection and statement to the caller.
 pub async fn Statement::step_async(self : Statement) -> Bool {
   let connection = self.connection
-  connection.0.val.job_gate.acquire()
-  defer connection.0.val.job_gate.release()
   let result = @async.protect_from_cancel() <| () => {
     let statement = self.get_handle()
     self.step_in_flight = true

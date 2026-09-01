@@ -121,6 +121,12 @@ async test "async step excludes synchronous use of the same statement" {
     } noraise {
       _ => fail("expected the in-flight statement to reject reset")
     }
+    try statement.finalize() catch {
+      SqliteError(code=Misuse, ..) => ()
+      error => raise error
+    } noraise {
+      _ => fail("expected the in-flight statement to reject finalization")
+    }
     try connection.close() catch {
       SqliteError(code=Misuse, ..) => ()
       error => raise error
@@ -168,7 +174,7 @@ async test "failed close preserves the connection executor" {
 }
 
 ///|
-async test "async prepare and step serialize on one connection" {
+async test "async prepare and step share one connection worker" {
   let connection = @sqlite3.Connection::open_async(":memory:")
   defer connection.close()
   execute(connection, "CREATE TABLE entries(value INTEGER)")

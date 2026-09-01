@@ -198,8 +198,13 @@ fn sqlite3_db_mutex_leave_impl(database : Sqlite3Handle) -> Unit {
 }
 
 ///|
-fn sqlite3_executor_wait_idle_impl(_executor : Sqlite3ExecutorHandle) -> Unit {
-  ignore(_executor.0)
+fn sqlite3_db_mutex_enter_impl(_database : Sqlite3Handle) -> Unit {
+  ignore(_database.0)
+}
+
+///|
+fn sqlite3_db_mutex_leave_impl(_database : Sqlite3Handle) -> Unit {
+  ignore(_database.0)
 }
 
 ///|
