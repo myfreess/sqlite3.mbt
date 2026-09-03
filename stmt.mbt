@@ -73,7 +73,7 @@ fn Statement::error(self : Statement, raw_code : Int) -> SqliteError {
 
 ///|
 fn sql_tail_is_ignorable(sql : String, start : Int) -> Bool {
-  let scanner = @lexbuf.StringScanner::{ data: sql[start:], cursor: 0, }
+  let scanner = @lexbuf.StringScanner::{ data: sql[start:], cursor: 0 }
   for ;; {
     lexscan scanner with longest {
       re"^[ \t\n\f\r;\uFEFF]+" => continue
@@ -113,7 +113,7 @@ pub fn Connection::prepare(
   }
   // Only a successful, non-empty prepare reaches this point. A handle from a
   // failed prepare is never stored in public Statement state.
-  { handle: Some(out), has_row: false, column_types: None, connection: self, }
+  { handle: Some(out), has_row: false, column_types: None, connection: self }
 }
 
 ///|

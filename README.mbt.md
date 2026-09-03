@@ -175,7 +175,9 @@ test "error handling" {
 ### `Connection`
 
 - `Connection::open(filename)`: open a database connection.
+- `Connection::open_async(filename)`: open a database without blocking the MoonBit event loop.
 - `Connection::prepare(sql)`: create a prepared statement.
+- `Connection::prepare_async(sql)`: prepare one statement without blocking the MoonBit event loop.
 - `Connection::changes()`: return the rows changed by the most recently completed `INSERT`, `UPDATE`, or `DELETE` on the connection.
 - `Connection::close()`: close the database connection.
 
@@ -183,6 +185,7 @@ test "error handling" {
 
 - `Statement::bind(index, value)`: bind a parameter. Parameter indexes start at `1`, matching the SQLite C API.
 - `Statement::step()`: advance the statement once. It returns `true` when a row is available and `false` when execution is complete. `CREATE`, `INSERT`, `UPDATE`, and `DELETE` statements without a `RETURNING` clause normally return `false` on the first call.
+- `Statement::step_async()`: advance the statement without blocking the MoonBit event loop.
 - `Statement::reset(clear_bindings?)`: rewind the statement for another execution. Existing parameter bindings are preserved by default; pass `clear_bindings=true` to replace them with SQL `NULL`.
 - `Statement::column(index)`: read a column value from the current row. Column indexes start at `0`; calling it before `step()` yields a row, after `step()` returns `false`, or after finalization raises an error with `code=Misuse`.
 - `Statement::column_count()` and `Statement::column_name(index)`: inspect result-column metadata independently of whether a row is currently available.
@@ -229,13 +232,14 @@ domain guarantees that the value fits. Request `Value` when distinguishing
 ## Constraints and Notes
 
 - This is a manual resource management API. Every `Statement` must be explicitly `finalize()`d, and every `Connection` must be explicitly `close()`d. Dropping these values does not release SQLite resources on any backend.
+- Native asynchronous operations use one lazily created worker per connection. Different connections can run concurrently.
 - Connections use SQLite's serialized mode. Preparing or using a statement holds SQLite's recursive connection mutex through any error-code and message recovery, so another thread cannot replace the diagnostic between the failing operation and its recovery.
 - The Wasm backend currently supports only moonrun. Filesystem access and SQL policy are enforced by moonrun.
 - The bundled native SQLite `3.49.1` build and the pinned moonrun SQLite `3.53.2` build both use SQLite's automatic reset behavior: calling `step()` again after it returns `false` reruns the statement with its existing bindings. Call `reset()` explicitly to rewind before rebinding; pass `clear_bindings=true` when old parameter values must not be reused.
-- `Connection::prepare` accepts exactly one SQL statement. Empty input, comment-only input, and additional statements after the first one raise an error with `code=Misuse`; trailing whitespace, comments, and empty semicolons are allowed.
+- `Connection::prepare` and `Connection::prepare_async` accept exactly one SQL statement. Empty input, comment-only input, and additional statements after the first one raise an error with `code=Misuse`; trailing whitespace, comments, and empty semicolons are allowed.
 - Parameter indexes start at `1`, while column indexes start at `0`. It is easy to mix these up.
 - SQL and `String` values cross both backend boundaries as UTF-16 code units. Native targets require little-endian UTF-16, while WebAssembly memory is little-endian by definition. SQLite converts text when the database file uses a different encoding. Use `Bytes` when the value is raw binary data rather than text.
-- `Connection::open` uses `sqlite3_open_v2`, so a new database defaults to UTF-8. To select UTF-16LE or UTF-16BE storage, run `PRAGMA encoding` before creating any schema objects; this choice is independent of the native string API.
+- `Connection::open` and `Connection::open_async` use `sqlite3_open_v2`, so a new database defaults to UTF-8. To select UTF-16LE or UTF-16BE storage, run `PRAGMA encoding` before creating any schema objects; this choice is independent of the native string API.
 - The package exposes result-column counts and names, but not declared column types. `Value` reports the initial runtime storage class of a value in the current row. That class is cached before typed coercion, so reading the same cell through a typed decoder first does not change the later `Value` variant.
 - The package is intentionally focused on SQLite basics and does not add transaction wrappers, batch helpers, or named-parameter support.
 
