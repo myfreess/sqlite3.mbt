@@ -55,7 +55,10 @@ pub fn Connection::open(filename : String) -> Connection raise SqliteError {
 /// Return the number of rows changed by the most recently completed `INSERT`,
 /// `UPDATE`, or `DELETE` on this connection.
 pub fn Connection::changes(self : Connection) -> Int64 raise SqliteError {
-  @ffi.sqlite3_changes64(self.handle())
+  let database = self.handle()
+  @ffi.sqlite3_db_mutex_enter(database)
+  defer @ffi.sqlite3_db_mutex_leave(database)
+  @ffi.sqlite3_changes64(database)
 }
 
 ///|
