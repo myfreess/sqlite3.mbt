@@ -140,7 +140,12 @@ pub fn Statement::column_name(Self, index~ : Int) -> String raise SqliteError
 pub fn Statement::finalize(Self) -> Unit raise SqliteError
 pub fn Statement::reset(Self, clear_bindings? : Bool) -> Unit raise SqliteError
 pub fn Statement::step(Self) -> Bool raise SqliteError
-pub async fn Statement::step_async(Self) -> Bool
+pub async fn Statement::step_async(Self) -> StepResult
+
+pub(all) enum StepResult {
+  Row
+  Done(changes~ : Int64?)
+} derive(Eq, @debug.Debug)
 
 pub(all) enum Value {
   Null

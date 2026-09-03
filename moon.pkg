@@ -8,6 +8,7 @@ import {
 
 import {
   "moonbitlang/core/test",
+  "moonbitlang/async/fs",
 } for "test"
 
 // The compiler currently emits warning 79 for public derived/implemented
@@ -18,3 +19,7 @@ import {
 warnings = "-79"
 
 supported_targets = "native+wasm"
+
+options(
+  targets: { "async.mbt": [ "native" ], "async_test.mbt": [ "native" ] },
+)

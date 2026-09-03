@@ -30,13 +30,6 @@ fn Connection::from_open_database(
 }
 
 ///|
-fn Connection::ensure_no_jobs(self : Connection) -> Unit raise SqliteError {
-  if self.0.val.jobs_in_flight != 0 {
-    raise sqlite_misuse("sqlite3: asynchronous operations are running")
-  }
-}
-
-///|
 fn Connection::handle(self : Connection) -> @ffi.Sqlite3 raise SqliteError {
   match self.0.val.database {
     Some(db) => db
@@ -125,7 +118,9 @@ pub fn Connection::changes(self : Connection) -> Int64 raise SqliteError {
 
 ///|
 pub fn Connection::close(self : Connection) -> Unit raise SqliteError {
-  self.ensure_no_jobs()
+  if self.0.val.jobs_in_flight != 0 {
+    raise sqlite_misuse("sqlite3: asynchronous operations are running")
+  }
   match self.0.val.database {
     None => ()
     Some(db) => {

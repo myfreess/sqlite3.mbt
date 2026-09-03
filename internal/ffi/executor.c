@@ -29,12 +29,12 @@ struct moonbit_sqlite3_executor {
 
 static unsigned __stdcall moonbit_sqlite3_worker(void *data);
 
-void
+static void
 moonbit_sqlite3_executor_lock(moonbit_sqlite3_executor_t *executor) {
   EnterCriticalSection(&executor->mutex);
 }
 
-void
+static void
 moonbit_sqlite3_executor_unlock(moonbit_sqlite3_executor_t *executor) {
   LeaveCriticalSection(&executor->mutex);
 }
@@ -57,12 +57,12 @@ moonbit_sqlite3_executor_wake(moonbit_sqlite3_executor_t *executor) {
 
 static void *moonbit_sqlite3_worker(void *data);
 
-void
+static void
 moonbit_sqlite3_executor_lock(moonbit_sqlite3_executor_t *executor) {
   pthread_mutex_lock(&executor->mutex);
 }
 
-void
+static void
 moonbit_sqlite3_executor_unlock(moonbit_sqlite3_executor_t *executor) {
   pthread_mutex_unlock(&executor->mutex);
 }

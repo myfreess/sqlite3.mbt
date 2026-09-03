@@ -34,9 +34,6 @@ fn sqlite3_errmsg16_import(
 fn sqlite3_errcode_import(database : UInt64) -> Int = "moonbitlang/sqlite" "sqlite3_errcode"
 
 ///|
-fn sqlite3_extended_errcode_import(database : UInt64) -> Int = "moonbitlang/sqlite" "sqlite3_extended_errcode"
-
-///|
 fn sqlite3_db_mutex_import(database : UInt64) -> UInt64 = "moonbitlang/sqlite" "sqlite3_db_mutex"
 
 ///|
@@ -178,13 +175,14 @@ priv struct Sqlite3StmtHandle(UInt64)
 priv struct Sqlite3ExecutorHandle(Int)
 
 ///|
-priv struct Sqlite3JobHandle {
-  rescode : Int
-  extended_rescode : Int
-  message : String
-  mut database : Sqlite3Handle?
-  mut statement : Sqlite3StmtHandle?
-  tail_offset : Int
+fn sqlite3_executor_create_impl(rescode : Ref[Int]) -> Sqlite3ExecutorHandle {
+  rescode.val = SQLITE_OK
+  Sqlite3ExecutorHandle(0)
+}
+
+///|
+fn sqlite3_executor_release_impl(executor : Sqlite3ExecutorHandle) -> Unit {
+  ignore(executor.0)
 }
 
 ///|
@@ -195,16 +193,6 @@ fn sqlite3_db_mutex_enter_impl(database : Sqlite3Handle) -> Unit {
 ///|
 fn sqlite3_db_mutex_leave_impl(database : Sqlite3Handle) -> Unit {
   sqlite3_mutex_leave_import(sqlite3_db_mutex_import(database.0))
-}
-
-///|
-fn sqlite3_db_mutex_enter_impl(_database : Sqlite3Handle) -> Unit {
-  ignore(_database.0)
-}
-
-///|
-fn sqlite3_db_mutex_leave_impl(_database : Sqlite3Handle) -> Unit {
-  ignore(_database.0)
 }
 
 ///|
@@ -223,66 +211,6 @@ fn sqlite3_open_v2_impl(
     null_handle,
   )
   Sqlite3Handle(database.val)
-}
-
-///|
-fn sqlite3_open_job_impl(
-  _executor : Sqlite3ExecutorHandle,
-  filename : Bytes,
-  flags : Int,
-  notification : @types.Fd,
-  submit_rescode : Ref[Int],
-) -> Sqlite3JobHandle {
-  ignore((_executor, notification))
-  submit_rescode.val = SQLITE_OK
-  let rescode = Ref(SQLITE_OK)
-  let database = sqlite3_open_v2_impl(filename, flags, rescode)
-  if rescode.val == SQLITE_OK {
-    {
-      rescode: SQLITE_OK,
-      extended_rescode: SQLITE_OK,
-      message: "",
-      database: Some(database),
-      statement: None,
-      tail_offset: -1,
-    }
-  } else {
-    let is_null = sqlite3_is_null_impl(database)
-    let extended_rescode = if is_null {
-      rescode.val
-    } else {
-      sqlite3_extended_errcode_import(database.0)
-    }
-    let message = if is_null { "" } else { sqlite3_errmsg_impl(database) }
-    let _ = sqlite3_close_impl(database)
-    {
-      rescode: rescode.val,
-      extended_rescode,
-      message,
-      database: None,
-      statement: None,
-      tail_offset: -1,
-    }
-  }
-}
-
-///|
-fn sqlite3_open_job_database_impl(job : Sqlite3JobHandle) -> Sqlite3Handle {
-  match job.database {
-    Some(database) => {
-      job.database = None
-      database
-    }
-    None => Sqlite3Handle(sqlite3_null_handle_import())
-  }
-}
-
-///|
-fn sqlite3_open_job_release_impl(job : Sqlite3JobHandle) -> Unit {
-  if job.database is Some(database) {
-    let _ = sqlite3_close_impl(database)
-    job.database = None
-  }
 }
 
 ///|
@@ -343,124 +271,8 @@ fn sqlite3_prepare16_v2_impl(
 }
 
 ///|
-fn sqlite3_prepare_job_impl(
-  _executor : Sqlite3ExecutorHandle,
-  database : Sqlite3Handle,
-  sql : String,
-  notification : @types.Fd,
-  submit_rescode : Ref[Int],
-) -> Sqlite3JobHandle {
-  ignore((_executor, notification))
-  submit_rescode.val = SQLITE_OK
-  let tail_offset = Ref(-1)
-  let rescode = Ref(SQLITE_OK)
-  let statement = sqlite3_prepare16_v2_impl(database, sql, tail_offset, rescode)
-  if rescode.val == SQLITE_OK {
-    let statement = if tail_offset.val < 0 { None } else { Some(statement) }
-    {
-      rescode: SQLITE_OK,
-      extended_rescode: SQLITE_OK,
-      message: "",
-      database: None,
-      statement,
-      tail_offset: tail_offset.val,
-    }
-  } else {
-    if statement.0 != sqlite3_null_handle_import() {
-      let _ = sqlite3_finalize_impl(statement)
-    }
-    {
-      rescode: rescode.val,
-      extended_rescode: sqlite3_extended_errcode_import(database.0),
-      message: sqlite3_errmsg_impl(database),
-      database: None,
-      statement: None,
-      tail_offset: -1,
-    }
-  }
-}
-
-///|
-fn sqlite3_prepare_job_statement_impl(
-  job : Sqlite3JobHandle,
-) -> Sqlite3StmtHandle {
-  match job.statement {
-    Some(statement) => {
-      job.statement = None
-      statement
-    }
-    None => Sqlite3StmtHandle(sqlite3_null_handle_import())
-  }
-}
-
-///|
-fn sqlite3_prepare_job_tail_offset_impl(job : Sqlite3JobHandle) -> Int {
-  job.tail_offset
-}
-
-///|
-fn sqlite3_prepare_job_release_impl(job : Sqlite3JobHandle) -> Unit {
-  if job.statement is Some(statement) {
-    let _ = sqlite3_finalize_impl(statement)
-    job.statement = None
-  }
-}
-
-///|
 fn sqlite3_step_impl(statement : Sqlite3StmtHandle) -> Int {
   sqlite3_step_import(statement.0)
-}
-
-///|
-fn sqlite3_step_job_impl(
-  _executor : Sqlite3ExecutorHandle,
-  database : Sqlite3Handle,
-  statement : Sqlite3StmtHandle,
-  notification : @types.Fd,
-  submit_rescode : Ref[Int],
-) -> Sqlite3JobHandle {
-  ignore((_executor, notification))
-  submit_rescode.val = SQLITE_OK
-  let rescode = sqlite3_step_import(statement.0)
-  let extended_rescode = sqlite3_extended_errcode_import(database.0)
-  let message = if rescode == 100 || rescode == 101 {
-    ""
-  } else {
-    sqlite3_errmsg_impl(database)
-  }
-  {
-    rescode,
-    extended_rescode,
-    message,
-    database: None,
-    statement: None,
-    tail_offset: -1,
-  }
-}
-
-///|
-fn sqlite3_job_is_ready_impl(_job : Sqlite3JobHandle) -> Bool {
-  true
-}
-
-///|
-fn sqlite3_job_rescode_impl(job : Sqlite3JobHandle) -> Int {
-  job.rescode
-}
-
-///|
-fn sqlite3_job_extended_rescode_impl(job : Sqlite3JobHandle) -> Int {
-  job.extended_rescode
-}
-
-///|
-fn sqlite3_job_message_impl(job : Sqlite3JobHandle) -> String {
-  job.message
-}
-
-///|
-fn sqlite3_step_job_release_impl(_job : Sqlite3JobHandle) -> Unit {
-
 }
 
 ///|

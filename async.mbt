@@ -1,9 +1,20 @@
 ///|
+/// The outcome of one asynchronous call to `Statement::step_async`.
+///
+/// `Done(changes=None)` means SQLite classified the statement as read-only.
+/// For a potentially writing statement, `Done(changes=Some(count))` carries
+/// the connection's direct row-change count captured before its mutex was
+/// released.
+pub(all) enum StepResult {
+  Row
+  Done(changes~ : Int64?)
+} derive(Debug, Eq)
+
+///|
 /// Open a database without blocking the MoonBit event loop.
 ///
-/// On native targets the worker created for this operation is retained by the
-/// connection for later asynchronous operations. A wasm host may complete the
-/// operation synchronously.
+/// The worker created for this operation is retained by the connection for
+/// later asynchronous operations.
 pub async fn Connection::open_async(filename : String) -> Connection {
   if filename.contains_code_unit(0x0000) {
     raise sqlite_misuse("sqlite3: filename contains a NUL code unit")
@@ -54,9 +65,9 @@ pub async fn Connection::open_async(filename : String) -> Connection {
 ///|
 /// Prepare one SQL statement without blocking the MoonBit event loop.
 ///
-/// Native jobs for one connection share its worker. A wasm host may complete
-/// the operation synchronously. Cancellation waits for an in-flight prepare
-/// and finalizes its result before returning control to the caller.
+/// Jobs for one connection share its worker. Cancellation waits for an
+/// in-flight prepare and finalizes its result before returning control to the
+/// caller.
 pub async fn Connection::prepare_async(
   self : Connection,
   sql : String,
@@ -97,12 +108,15 @@ pub async fn Connection::prepare_async(
     job.take_statement()
   }
   if @async.is_being_cancelled() {
+    let database = self.handle()
+    @ffi.sqlite3_db_mutex_enter(database)
+    defer @ffi.sqlite3_db_mutex_leave(database)
     let _ = @ffi.sqlite3_finalize(statement)
     @async.pause()
   }
   {
     handle: Some(statement),
-    step_in_flight: false,
+    step_in_flight: Ref(false),
     has_row: false,
     column_types: None,
     connection: self,
@@ -112,9 +126,8 @@ pub async fn Connection::prepare_async(
 ///|
 /// Execute one step without blocking the MoonBit event loop.
 ///
-/// Native jobs for one connection share its worker. Operations on different
-/// connections may run concurrently on their respective workers. A wasm host
-/// may complete the operation synchronously.
+/// Jobs for one connection share its worker. Operations on different
+/// connections may run concurrently on their respective workers.
 ///
 /// Synchronous operations on other statements may run while this step is in
 /// flight, but can block behind SQLite's serialized connection access. The
@@ -122,13 +135,13 @@ pub async fn Connection::prepare_async(
 ///
 /// Cancellation waits for an in-flight SQLite step to finish before returning
 /// the connection and statement to the caller.
-pub async fn Statement::step_async(self : Statement) -> Bool {
+pub async fn Statement::step_async(self : Statement) -> StepResult {
   let connection = self.connection
   let result = @async.protect_from_cancel() <| () => {
     let statement = self.get_handle()
-    self.step_in_flight = true
+    self.step_in_flight.val = true
     defer {
-      self.step_in_flight = false
+      self.step_in_flight.val = false
     }
     let (database, executor) = connection.begin_job()
     defer connection.finish_job()
@@ -146,10 +159,14 @@ pub async fn Statement::step_async(self : Statement) -> Bool {
       )
     }
     job.wait()
-    let (rescode, extended_rescode, message) = job.result()
-    match self.apply_step_result(rescode) {
-      Some(has_row) => has_row
-      None =>
+    let (rescode, extended_rescode, message, changes) = job.result()
+    match rescode {
+      SQLITE_ROW => {
+        self.has_row = true
+        Row
+      }
+      SQLITE_DONE => Done(changes~)
+      _ =>
         raise sqlite_error(
           extended_rescode,
           if message == "" {

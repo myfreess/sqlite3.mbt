@@ -10,6 +10,7 @@ priv type Sqlite3StmtHandle
 #external
 priv type Sqlite3MutexHandle
 
+///|
 #external
 priv type Sqlite3ExecutorHandle
 
@@ -135,7 +136,7 @@ extern "c" fn sqlite3_step_job_impl(
 ) -> Sqlite3JobHandle = "moonbit_sqlite3_step_job"
 
 ///|
-extern "c" fn sqlite3_job_is_ready_impl(job : Sqlite3JobHandle) -> Bool = "moonbit_sqlite3_job_is_ready"
+extern "c" fn sqlite3_job_acquire_result_impl(job : Sqlite3JobHandle) -> Bool = "moonbit_sqlite3_job_acquire_result"
 
 ///|
 extern "c" fn sqlite3_job_rescode_impl(job : Sqlite3JobHandle) -> Int = "moonbit_sqlite3_job_rescode"
@@ -145,6 +146,12 @@ extern "c" fn sqlite3_job_extended_rescode_impl(job : Sqlite3JobHandle) -> Int =
 
 ///|
 extern "c" fn sqlite3_job_message_impl(job : Sqlite3JobHandle) -> String = "moonbit_sqlite3_job_message"
+
+///|
+extern "c" fn sqlite3_step_job_has_changes_impl(job : Sqlite3JobHandle) -> Bool = "moonbit_sqlite3_step_job_has_changes"
+
+///|
+extern "c" fn sqlite3_step_job_changes_impl(job : Sqlite3JobHandle) -> Int64 = "moonbit_sqlite3_step_job_changes"
 
 ///|
 extern "c" fn sqlite3_step_job_release_impl(job : Sqlite3JobHandle) -> Unit = "moonbit_sqlite3_step_job_release"

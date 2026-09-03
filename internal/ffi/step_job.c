@@ -6,6 +6,8 @@ typedef struct moonbit_sqlite3_step_job {
   moonbit_sqlite3_job_t job;
   sqlite3 *database;
   sqlite3_stmt *statement;
+  sqlite3_int64 changes;
+  int32_t has_changes;
 } moonbit_sqlite3_step_job_t;
 
 static void
@@ -19,16 +21,27 @@ moonbit_sqlite3_run_step_job(
   if (mutex) {
     sqlite3_mutex_enter(mutex);
   }
+  int read_only = sqlite3_stmt_readonly(step_job->statement);
+  sqlite3_int64 total_changes_before =
+    sqlite3_total_changes64(step_job->database);
   job->rescode = sqlite3_step(step_job->statement);
   if (job->rescode == SQLITE_ROW || job->rescode == SQLITE_DONE) {
     job->extended_rescode = job->rescode;
+    if (job->rescode == SQLITE_DONE && !read_only) {
+      step_job->has_changes = 1;
+      sqlite3_int64 total_changes_after =
+        sqlite3_total_changes64(step_job->database);
+      step_job->changes = total_changes_after == total_changes_before
+        ? 0
+        : sqlite3_changes64(step_job->database);
+    }
   } else {
     moonbit_sqlite3_job_capture_error(job, step_job->database);
   }
   if (mutex) {
     sqlite3_mutex_leave(mutex);
   }
-  moonbit_sqlite3_job_complete(job);
+  moonbit_sqlite3_job_publish_result(job);
 }
 
 MOONBIT_FFI_EXPORT
@@ -66,9 +79,31 @@ moonbit_sqlite3_step_job(
 }
 
 MOONBIT_FFI_EXPORT
+int32_t
+moonbit_sqlite3_step_job_has_changes(moonbit_sqlite3_job_t *job) {
+  if (!job || !moonbit_sqlite3_job_result_is_published(job)) {
+    return 0;
+  }
+  moonbit_sqlite3_step_job_t *step_job =
+    (moonbit_sqlite3_step_job_t *)job;
+  return step_job->has_changes;
+}
+
+MOONBIT_FFI_EXPORT
+sqlite3_int64
+moonbit_sqlite3_step_job_changes(moonbit_sqlite3_job_t *job) {
+  if (!job || !moonbit_sqlite3_job_result_is_published(job)) {
+    return 0;
+  }
+  moonbit_sqlite3_step_job_t *step_job =
+    (moonbit_sqlite3_step_job_t *)job;
+  return step_job->changes;
+}
+
+MOONBIT_FFI_EXPORT
 void
 moonbit_sqlite3_step_job_release(moonbit_sqlite3_job_t *job) {
-  if (!job || !moonbit_sqlite3_job_ready(job)) {
+  if (!job || !moonbit_sqlite3_job_result_is_published(job)) {
     return;
   }
   moonbit_sqlite3_job_dispose(job);

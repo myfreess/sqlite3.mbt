@@ -116,8 +116,12 @@ moonbit_sqlite3_job_submit(
     return false;
   }
   job->executor_job.run = run;
-  job->executor = executor;
   job->notification = duplicate;
+#ifdef _WIN32
+  job->result_published = 0;
+#else
+  atomic_init(&job->result_published, false);
+#endif
   if (!moonbit_sqlite3_executor_submit(executor, &job->executor_job)) {
     moonbit_sqlite3_close_notification(duplicate);
     *rescode = SQLITE_IOERR;
@@ -164,28 +168,38 @@ moonbit_sqlite3_job_capture_error(
 }
 
 void
-moonbit_sqlite3_job_complete(moonbit_sqlite3_job_t *job) {
+moonbit_sqlite3_job_publish_result(moonbit_sqlite3_job_t *job) {
+  /* The release operation publishes every preceding result write, including
+   * fields owned by a concrete job. The waiter performs the matching acquire
+   * after the private pipe wakes it. Copy the notification first because the
+   * worker must not touch the job after publishing it. */
   moonbit_sqlite3_notification_t notification = job->notification;
-  moonbit_sqlite3_executor_t *executor = job->executor;
-  moonbit_sqlite3_executor_lock(executor);
-  job->ready = true;
-  moonbit_sqlite3_executor_unlock(executor);
-  /* `ready` lets the MoonBit owner release `job`, so the worker must use only
-   * local state from this point onward. */
+#ifdef _WIN32
+  InterlockedExchange(&job->result_published, 1);
+#else
+  atomic_store_explicit(
+    &job->result_published,
+    true,
+    memory_order_release
+  );
+#endif
   moonbit_sqlite3_notify(notification);
   moonbit_sqlite3_close_notification(notification);
 }
 
 bool
-moonbit_sqlite3_job_ready(moonbit_sqlite3_job_t *job) {
+moonbit_sqlite3_job_result_is_published(moonbit_sqlite3_job_t *job) {
   if (!job) {
-    return true;
+    return false;
   }
-  moonbit_sqlite3_executor_t *executor = job->executor;
-  moonbit_sqlite3_executor_lock(executor);
-  bool ready = job->ready;
-  moonbit_sqlite3_executor_unlock(executor);
-  return ready;
+#ifdef _WIN32
+  return InterlockedCompareExchange(&job->result_published, 0, 0) != 0;
+#else
+  return atomic_load_explicit(
+    &job->result_published,
+    memory_order_acquire
+  );
+#endif
 }
 
 void
@@ -195,26 +209,32 @@ moonbit_sqlite3_job_dispose(moonbit_sqlite3_job_t *job) {
 
 MOONBIT_FFI_EXPORT
 int32_t
-moonbit_sqlite3_job_is_ready(moonbit_sqlite3_job_t *job) {
-  return moonbit_sqlite3_job_ready(job) ? 1 : 0;
+moonbit_sqlite3_job_acquire_result(moonbit_sqlite3_job_t *job) {
+  return moonbit_sqlite3_job_result_is_published(job) ? 1 : 0;
 }
 
 MOONBIT_FFI_EXPORT
 int32_t
 moonbit_sqlite3_job_rescode(moonbit_sqlite3_job_t *job) {
-  return job ? job->rescode : SQLITE_MISUSE;
+  return job && moonbit_sqlite3_job_result_is_published(job)
+    ? job->rescode
+    : SQLITE_MISUSE;
 }
 
 MOONBIT_FFI_EXPORT
 int32_t
 moonbit_sqlite3_job_extended_rescode(moonbit_sqlite3_job_t *job) {
-  return job ? job->extended_rescode : SQLITE_MISUSE;
+  return job && moonbit_sqlite3_job_result_is_published(job)
+    ? job->extended_rescode
+    : SQLITE_MISUSE;
 }
 
 MOONBIT_FFI_EXPORT
 moonbit_string_t
 moonbit_sqlite3_job_message(moonbit_sqlite3_job_t *job) {
-  int32_t length = job ? job->message_length : 0;
+  int32_t length = job && moonbit_sqlite3_job_result_is_published(job)
+    ? job->message_length
+    : 0;
   moonbit_string_t message = moonbit_make_string_raw(length);
   if (length > 0) {
     memcpy(message, job->message, (size_t)length * sizeof(uint16_t));

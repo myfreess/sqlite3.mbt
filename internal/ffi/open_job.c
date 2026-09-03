@@ -39,7 +39,7 @@ moonbit_sqlite3_run_open_job(
       open_job->database = NULL;
     }
   }
-  moonbit_sqlite3_job_complete(job);
+  moonbit_sqlite3_job_publish_result(job);
 }
 
 MOONBIT_FFI_EXPORT
@@ -83,7 +83,7 @@ moonbit_sqlite3_open_job(
 MOONBIT_FFI_EXPORT
 sqlite3 *
 moonbit_sqlite3_open_job_database(moonbit_sqlite3_job_t *job) {
-  if (!job || !moonbit_sqlite3_job_ready(job) ||
+  if (!job || !moonbit_sqlite3_job_result_is_published(job) ||
       job->rescode != SQLITE_OK) {
     return NULL;
   }
@@ -97,7 +97,7 @@ moonbit_sqlite3_open_job_database(moonbit_sqlite3_job_t *job) {
 MOONBIT_FFI_EXPORT
 void
 moonbit_sqlite3_open_job_release(moonbit_sqlite3_job_t *job) {
-  if (!job || !moonbit_sqlite3_job_ready(job)) {
+  if (!job || !moonbit_sqlite3_job_result_is_published(job)) {
     return;
   }
   moonbit_sqlite3_open_job_t *open_job =

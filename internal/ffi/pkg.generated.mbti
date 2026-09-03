@@ -89,7 +89,7 @@ pub async fn Sqlite3PrepareJob::wait(Self) -> Unit
 
 type Sqlite3StepJob
 pub fn Sqlite3StepJob::release(Self) -> Unit
-pub fn Sqlite3StepJob::result(Self) -> (Int, Int, String)
+pub fn Sqlite3StepJob::result(Self) -> (Int, Int, String, Int64?)
 pub async fn Sqlite3StepJob::wait(Self) -> Unit
 
 type Sqlite3Stmt

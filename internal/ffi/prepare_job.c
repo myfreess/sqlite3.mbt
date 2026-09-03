@@ -52,7 +52,7 @@ moonbit_sqlite3_run_prepare_job(
   }
   free(prepare_job->sql);
   prepare_job->sql = NULL;
-  moonbit_sqlite3_job_complete(job);
+  moonbit_sqlite3_job_publish_result(job);
 }
 
 MOONBIT_FFI_EXPORT
@@ -109,7 +109,7 @@ moonbit_sqlite3_prepare_job(
 MOONBIT_FFI_EXPORT
 sqlite3_stmt *
 moonbit_sqlite3_prepare_job_statement(moonbit_sqlite3_job_t *job) {
-  if (!job || !moonbit_sqlite3_job_ready(job) ||
+  if (!job || !moonbit_sqlite3_job_result_is_published(job) ||
       job->rescode != SQLITE_OK) {
     return NULL;
   }
@@ -123,7 +123,7 @@ moonbit_sqlite3_prepare_job_statement(moonbit_sqlite3_job_t *job) {
 MOONBIT_FFI_EXPORT
 int32_t
 moonbit_sqlite3_prepare_job_tail_offset(moonbit_sqlite3_job_t *job) {
-  if (!job || !moonbit_sqlite3_job_ready(job)) {
+  if (!job || !moonbit_sqlite3_job_result_is_published(job)) {
     return -1;
   }
   moonbit_sqlite3_prepare_job_t *prepare_job =
@@ -134,14 +134,21 @@ moonbit_sqlite3_prepare_job_tail_offset(moonbit_sqlite3_job_t *job) {
 MOONBIT_FFI_EXPORT
 void
 moonbit_sqlite3_prepare_job_release(moonbit_sqlite3_job_t *job) {
-  if (!job || !moonbit_sqlite3_job_ready(job)) {
+  if (!job || !moonbit_sqlite3_job_result_is_published(job)) {
     return;
   }
   moonbit_sqlite3_prepare_job_t *prepare_job =
     (moonbit_sqlite3_prepare_job_t *)job;
   free(prepare_job->sql);
   if (prepare_job->statement) {
+    sqlite3_mutex *mutex = sqlite3_db_mutex(prepare_job->database);
+    if (mutex) {
+      sqlite3_mutex_enter(mutex);
+    }
     sqlite3_finalize(prepare_job->statement);
+    if (mutex) {
+      sqlite3_mutex_leave(mutex);
+    }
   }
   moonbit_sqlite3_job_dispose(job);
   free(prepare_job);

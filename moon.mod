@@ -15,5 +15,5 @@ description = "A lightweight, low-level SQLite3 binding for MoonBit, providing a
 preferred_target = "native"
 
 import {
-  "moonbitlang/async@0.21.0",
+  "moonbitlang/async@0.21.2",
 }

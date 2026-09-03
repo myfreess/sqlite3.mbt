@@ -27,10 +27,4 @@ moonbit_sqlite3_executor_submit(
   moonbit_sqlite3_executor_job_t *job
 );
 
-void
-moonbit_sqlite3_executor_lock(moonbit_sqlite3_executor_t *executor);
-
-void
-moonbit_sqlite3_executor_unlock(moonbit_sqlite3_executor_t *executor);
-
 #endif
