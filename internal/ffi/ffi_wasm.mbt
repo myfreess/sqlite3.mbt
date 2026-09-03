@@ -34,6 +34,15 @@ fn sqlite3_errmsg16_import(
 fn sqlite3_errcode_import(database : UInt64) -> Int = "moonbitlang/sqlite" "sqlite3_errcode"
 
 ///|
+fn sqlite3_db_mutex_import(database : UInt64) -> UInt64 = "moonbitlang/sqlite" "sqlite3_db_mutex"
+
+///|
+fn sqlite3_mutex_enter_import(mutex : UInt64) -> Unit = "moonbitlang/sqlite" "sqlite3_mutex_enter"
+
+///|
+fn sqlite3_mutex_leave_import(mutex : UInt64) -> Unit = "moonbitlang/sqlite" "sqlite3_mutex_leave"
+
+///|
 fn sqlite3_changes64_import(database : UInt64) -> Int64 = "moonbitlang/sqlite" "sqlite3_changes64"
 
 ///|
@@ -163,13 +172,13 @@ priv struct Sqlite3Handle(UInt64)
 priv struct Sqlite3StmtHandle(UInt64)
 
 ///|
-fn sqlite3_db_mutex_enter_impl(_database : Sqlite3Handle) -> Unit {
-  ignore(_database.0)
+fn sqlite3_db_mutex_enter_impl(database : Sqlite3Handle) -> Unit {
+  sqlite3_mutex_enter_import(sqlite3_db_mutex_import(database.0))
 }
 
 ///|
-fn sqlite3_db_mutex_leave_impl(_database : Sqlite3Handle) -> Unit {
-  ignore(_database.0)
+fn sqlite3_db_mutex_leave_impl(database : Sqlite3Handle) -> Unit {
+  sqlite3_mutex_leave_import(sqlite3_db_mutex_import(database.0))
 }
 
 ///|
