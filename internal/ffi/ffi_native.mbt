@@ -7,6 +7,31 @@ priv type Sqlite3Handle
 priv type Sqlite3StmtHandle
 
 ///|
+#external
+priv type Sqlite3MutexHandle
+
+///|
+extern "c" fn sqlite3_db_mutex_impl(
+  database : Sqlite3Handle,
+) -> Sqlite3MutexHandle = "sqlite3_db_mutex"
+
+///|
+extern "c" fn sqlite3_mutex_enter_raw(mutex : Sqlite3MutexHandle) -> Unit = "sqlite3_mutex_enter"
+
+///|
+extern "c" fn sqlite3_mutex_leave_raw(mutex : Sqlite3MutexHandle) -> Unit = "sqlite3_mutex_leave"
+
+///|
+fn sqlite3_db_mutex_enter_impl(database : Sqlite3Handle) -> Unit {
+  sqlite3_mutex_enter_raw(sqlite3_db_mutex_impl(database))
+}
+
+///|
+fn sqlite3_db_mutex_leave_impl(database : Sqlite3Handle) -> Unit {
+  sqlite3_mutex_leave_raw(sqlite3_db_mutex_impl(database))
+}
+
+///|
 #borrow(filename, rescode)
 extern "c" fn sqlite3_open_v2_impl(
   filename : Bytes,

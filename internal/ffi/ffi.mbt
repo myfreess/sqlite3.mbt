@@ -34,6 +34,18 @@ pub fn sqlite3_errcode(database : Sqlite3) -> Int {
 }
 
 ///|
+/// Enter the serialized connection's recursive mutex. Callers keep it held
+/// across one logical operation and any connection-owned diagnostic recovery.
+pub fn sqlite3_db_mutex_enter(database : Sqlite3) -> Unit {
+  sqlite3_db_mutex_enter_impl(database.0)
+}
+
+///|
+pub fn sqlite3_db_mutex_leave(database : Sqlite3) -> Unit {
+  sqlite3_db_mutex_leave_impl(database.0)
+}
+
+///|
 pub fn sqlite3_prepare16_v2(
   database : Sqlite3,
   sql : String,
