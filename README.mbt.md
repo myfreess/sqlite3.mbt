@@ -230,7 +230,7 @@ domain guarantees that the value fits. Request `Value` when distinguishing
 
 - This is a manual resource management API. Every `Statement` must be explicitly `finalize()`d, and every `Connection` must be explicitly `close()`d. Dropping these values does not release SQLite resources on any backend.
 - Connections use SQLite's serialized mode. Preparing or using a statement holds SQLite's recursive connection mutex through any error-code and message recovery, so another thread cannot replace the diagnostic between the failing operation and its recovery.
-- The Wasm backend requires a runtime that provides the `moonbitlang/sqlite` imports, including `sqlite3_db_mutex`, `sqlite3_mutex_enter`, and `sqlite3_mutex_leave`. Filesystem access and SQL policy are enforced by the host runtime.
+- The Wasm backend currently supports only moonrun. Filesystem access and SQL policy are enforced by moonrun.
 - The bundled native SQLite `3.49.1` build and the pinned moonrun SQLite `3.53.2` build both use SQLite's automatic reset behavior: calling `step()` again after it returns `false` reruns the statement with its existing bindings. Call `reset()` explicitly to rewind before rebinding; pass `clear_bindings=true` when old parameter values must not be reused.
 - `Connection::prepare` accepts exactly one SQL statement. Empty input, comment-only input, and additional statements after the first one raise an error with `code=Misuse`; trailing whitespace, comments, and empty semicolons are allowed.
 - Parameter indexes start at `1`, while column indexes start at `0`. It is easy to mix these up.
