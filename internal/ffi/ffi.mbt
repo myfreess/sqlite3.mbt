@@ -5,6 +5,19 @@ struct Sqlite3(Sqlite3Handle)
 struct Sqlite3Stmt(Sqlite3StmtHandle)
 
 ///|
+struct Sqlite3Executor(Sqlite3ExecutorHandle)
+
+///|
+pub fn sqlite3_executor_create(rescode : Ref[Int]) -> Sqlite3Executor {
+  Sqlite3Executor(sqlite3_executor_create_impl(rescode))
+}
+
+///|
+pub fn sqlite3_executor_release(executor : Sqlite3Executor) -> Unit {
+  sqlite3_executor_release_impl(executor.0)
+}
+
+///|
 pub fn sqlite3_open_v2(
   filename : Bytes,
   flags : Int,

@@ -172,6 +172,20 @@ priv struct Sqlite3Handle(UInt64)
 priv struct Sqlite3StmtHandle(UInt64)
 
 ///|
+priv struct Sqlite3ExecutorHandle(Int)
+
+///|
+fn sqlite3_executor_create_impl(rescode : Ref[Int]) -> Sqlite3ExecutorHandle {
+  rescode.val = SQLITE_OK
+  Sqlite3ExecutorHandle(0)
+}
+
+///|
+fn sqlite3_executor_release_impl(executor : Sqlite3ExecutorHandle) -> Unit {
+  ignore(executor.0)
+}
+
+///|
 fn sqlite3_db_mutex_enter_impl(database : Sqlite3Handle) -> Unit {
   sqlite3_mutex_enter_import(sqlite3_db_mutex_import(database.0))
 }

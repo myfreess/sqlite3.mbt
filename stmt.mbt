@@ -1,6 +1,7 @@
 ///|
 struct Statement {
   mut handle : @ffi.Sqlite3Stmt?
+  step_in_flight : Ref[Bool]
   mut has_row : Bool
   mut column_types : Array[Int]?
   connection : Connection
@@ -10,9 +11,18 @@ struct Statement {
 const SQLITE_NOMEM = 7
 
 ///|
+fn Statement::ensure_not_in_flight(self : Statement) -> Unit raise SqliteError {
+  if self.step_in_flight.val {
+    raise sqlite_misuse("sqlite3: an asynchronous step is using this statement")
+  }
+}
+
+///|
 fn Statement::get_handle(
   self : Statement,
 ) -> @ffi.Sqlite3Stmt raise SqliteError {
+  self.ensure_not_in_flight()
+  let _ = self.connection.handle()
   match self.handle {
     Some(handle) => handle
     None => raise sqlite_misuse("sqlite3: statement is finalized")
@@ -24,6 +34,8 @@ fn Statement::column_info(
   self : Statement,
   index : Int,
 ) -> (@ffi.Sqlite3Stmt, Int) raise SqliteError {
+  self.ensure_not_in_flight()
+  let _ = self.connection.handle()
   match (self.handle, self.has_row) {
     (Some(handle), true) => {
       let column_count = @ffi.sqlite3_column_count(handle)
@@ -100,7 +112,13 @@ pub fn Connection::prepare(
   }
   // Only a successful, non-empty prepare reaches this point. A handle from a
   // failed prepare is never stored in public Statement state.
-  { handle: Some(out), has_row: false, column_types: None, connection: self, }
+  {
+    handle: Some(out),
+    step_in_flight: Ref(false),
+    has_row: false,
+    column_types: None,
+    connection: self,
+  }
 }
 
 ///|
@@ -144,7 +162,11 @@ pub fn Statement::reset(
 ///
 /// Statements that do not return rows have zero columns.
 pub fn Statement::column_count(self : Statement) -> Int raise SqliteError {
-  @ffi.sqlite3_column_count(self.get_handle())
+  let handle = self.get_handle()
+  let database = self.connection.handle()
+  @ffi.sqlite3_db_mutex_enter(database)
+  defer @ffi.sqlite3_db_mutex_leave(database)
+  @ffi.sqlite3_column_count(handle)
 }
 
 ///|
@@ -222,6 +244,7 @@ pub fn Statement::step(self : Statement) -> Bool raise SqliteError {
 
 ///|
 pub fn Statement::finalize(self : Statement) -> Unit raise SqliteError {
+  self.ensure_not_in_flight()
   match self.handle {
     None => ()
     Some(handle) => {

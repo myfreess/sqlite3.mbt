@@ -46,22 +46,51 @@ pub fn sqlite3_errcode(Sqlite3) -> Int
 
 pub fn sqlite3_errmsg(Sqlite3) -> String
 
+pub fn sqlite3_executor_create(@ref.Ref[Int]) -> Sqlite3Executor
+
+pub fn sqlite3_executor_release(Sqlite3Executor) -> Unit
+
 pub fn sqlite3_finalize(Sqlite3Stmt) -> Int
 
 pub fn sqlite3_is_null(Sqlite3) -> Bool
+
+pub fn sqlite3_open_job(Sqlite3Executor, Bytes, Int, @ref.Ref[Int]) -> Sqlite3OpenJob raise
 
 pub fn sqlite3_open_v2(Bytes, Int, @ref.Ref[Int]) -> Sqlite3
 
 pub fn sqlite3_prepare16_v2(Sqlite3, String, @ref.Ref[Int], @ref.Ref[Int]) -> Sqlite3Stmt
 
+pub fn sqlite3_prepare_job(Sqlite3Executor, Sqlite3, String, @ref.Ref[Int]) -> Sqlite3PrepareJob raise
+
 pub fn sqlite3_reset(Sqlite3Stmt) -> Int
 
 pub fn sqlite3_step(Sqlite3Stmt) -> Int
+
+pub fn sqlite3_step_job(Sqlite3Executor, Sqlite3, Sqlite3Stmt, @ref.Ref[Int]) -> Sqlite3StepJob raise
 
 // Errors
 
 // Types and methods
 type Sqlite3
+
+type Sqlite3Executor
+
+type Sqlite3OpenJob
+pub fn Sqlite3OpenJob::release(Self) -> Unit
+pub fn Sqlite3OpenJob::result(Self) -> (Int, Int, String)
+pub fn Sqlite3OpenJob::take_database(Self) -> Sqlite3
+pub async fn Sqlite3OpenJob::wait(Self) -> Unit
+
+type Sqlite3PrepareJob
+pub fn Sqlite3PrepareJob::release(Self) -> Unit
+pub fn Sqlite3PrepareJob::result(Self) -> (Int, Int, String, Int)
+pub fn Sqlite3PrepareJob::take_statement(Self) -> Sqlite3Stmt
+pub async fn Sqlite3PrepareJob::wait(Self) -> Unit
+
+type Sqlite3StepJob
+pub fn Sqlite3StepJob::release(Self) -> Unit
+pub fn Sqlite3StepJob::result(Self) -> (Int, Int, String, Int64?)
+pub async fn Sqlite3StepJob::wait(Self) -> Unit
 
 type Sqlite3Stmt
 

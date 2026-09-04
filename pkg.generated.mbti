@@ -17,7 +17,9 @@ type Connection
 pub fn Connection::changes(Self) -> Int64 raise SqliteError
 pub fn Connection::close(Self) -> Unit raise SqliteError
 pub fn Connection::open(String) -> Self raise SqliteError
+pub async fn Connection::open_async(String) -> Self
 pub fn Connection::prepare(Self, String) -> Statement raise SqliteError
+pub async fn Connection::prepare_async(Self, String) -> Statement
 
 pub(all) enum ErrorCode {
   Error
@@ -138,6 +140,12 @@ pub fn Statement::column_name(Self, index~ : Int) -> String raise SqliteError
 pub fn Statement::finalize(Self) -> Unit raise SqliteError
 pub fn Statement::reset(Self, clear_bindings? : Bool) -> Unit raise SqliteError
 pub fn Statement::step(Self) -> Bool raise SqliteError
+pub async fn Statement::step_async(Self) -> StepResult
+
+pub(all) enum StepResult {
+  Row
+  Done(changes~ : Int64?)
+} derive(Eq, @debug.Debug)
 
 pub(all) enum Value {
   Null
